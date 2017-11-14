@@ -1,0 +1,8 @@
+--------------------------------------------------------
+--  Ref Constraints for Table TRANSACCION
+--------------------------------------------------------
+
+  ALTER TABLE INDEMNIZA.TRANSACCION ADD CONSTRAINT TRANSACCION_DESISTIMIENTO_FK FOREIGN KEY (DESISTIMIENTO_FEC_REG, DESIS_SOL_SAI_SOLICITUD)
+	  REFERENCES INDEMNIZA.DESISTIMIENTO (FEC_REG, SOLICITUD_SAI_SOLICITUD) ENABLE;
+	  
+	  

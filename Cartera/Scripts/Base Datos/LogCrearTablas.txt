@@ -1,0 +1,595 @@
+
+SQL*Plus: Release 11.2.0.2.0 Production on Mar Oct 31 16:38:31 2017
+
+Copyright (c) 1982, 2014, Oracle.  All rights reserved.
+
+
+Connected to:
+Oracle Database 11g Express Edition Release 11.2.0.2.0 - 64bit Production
+
+
+Table created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Index created.
+
+
+Table created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Table created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Table altered.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Table altered.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Table altered.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Table altered.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Table altered.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Table altered.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Table altered.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Table altered.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Table altered.
+
+
+Table altered.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Table altered.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table altered.
+
+
+Table altered.
+
+
+Table created.
+
+
+Table altered.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Comment created.
+
+
+Index created.
+
+
+Index created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Table altered.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Table altered.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Table altered.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Table altered.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Table altered.
+
+
+Table altered.
+
+
+Table altered.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Index created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Table altered.
+
+
+Table altered.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Table altered.
+
+
+Table altered.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Comment created.
+
+
+Table altered.
+
+
+Table created.
+
+
+Table altered.
+
+
+Comment created.
+
+
+Table altered.
+
+Disconnected from Oracle Database 11g Express Edition Release 11.2.0.2.0 - 64bit Production

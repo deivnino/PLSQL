@@ -1,0 +1,1977 @@
+CREATE OR REPLACE PROCEDURE REPLICAR_SINIESTRO(SOLICITUD    NUMBER,
+                                               FECHA_MORA_V DATE,
+                                               SINIESTRO    NUMBER,
+                                               POLIZA       NUMBER,
+                                               RAMO         VARCHAR2,
+                                               USUARIO      VARCHAR2,
+                                               FECHA_MORA_N DATE,
+                                               MENSAJE      OUT VARCHAR2) IS
+
+
+  CURSOR C_CSN_NMRO_SNSTRO IS
+    SELECT NMS_ULTMO_SNSTRO_ASGNDO
+      FROM NMRCION_SNSTROS
+     WHERE NMS_RAM_CDGO = RAMO
+       FOR UPDATE OF NMS_ULTMO_SNSTRO_ASGNDO;
+
+  CURSOR C_OBJCNES IS
+    SELECT *
+      FROM OBJCNES_SNSTROS
+     WHERE OBS_NMRO_SNSTRO = SINIESTRO
+       AND OBS_RAM_CDGO = RAMO;
+
+
+  CURSOR C_PGOS_EFCTDOS IS
+    SELECT * FROM PGOS_EFCTDOS_SNSTROS
+     WHERE PES_NMRO_SNSTRO = SINIESTRO;
+
+  CURSOR C_BTCORA IS
+    SELECT * FROM BITCRAS_LLMDAS BL
+     WHERE BL.BLL_NMRO_SLCTUD = SOLICITUD
+       AND BL.BLL_FCHA_MRA = FECHA_MORA_V;
+
+  CURSOR C_FCHAS_LQDCION IS
+    SELECT * FROM FCHAS_LQDCION_SLCTDES FL
+     WHERE FL.FLS_NMRO_SLCTUD = SOLICITUD
+       AND FL.FLS_FCHA_MRA = FECHA_MORA_V;
+
+  CURSOR C_CSNES_PLZAS IS
+    SELECT * FROM CSNES_PLZAS CP
+     WHERE CP.CSP_SLCTUD = SOLICITUD
+       AND CP.CSP_FCHA_MRA = FECHA_MORA_V;
+
+  CURSOR C_DDAS_MRCDAS IS
+    SELECT *  FROM DDAS_MRCDAS_SNDAS DM
+     WHERE DM.DMS_NMRO_SLCTUD = SOLICITUD
+       AND DM.DMS_FCHA_MRA = FECHA_MORA_V;
+
+  CURSOR C_FCTRAS IS
+    SELECT * FROM FCTRAS_AFCTDAS_SNSTRO FA
+     WHERE FA.FAS_NMRO_SNSTRO = SINIESTRO;
+
+  CURSOR C_FCTRAS_SNSTROS IS
+    SELECT *  FROM FCTRAS_SNSTROS FS
+     WHERE FS.FAS_NMRO_SNSTRO = SINIESTRO;
+
+  CURSOR C_RCBOS_CHQUES IS
+    SELECT * FROM RCBOS_CHQUES RH
+     WHERE RH.RBH_SES_NMRO = SOLICITUD
+       AND RH.RBH_VLD_FCHA_MRA = FECHA_MORA_V;
+
+  CURSOR C_RGSTRO_PDRES IS
+    SELECT * FROM RGSTRO_PDRES RP
+     WHERE RP.RGP_NMRO_SLCTUD = SOLICITUD
+       AND RP.RGP_FECHA_MRA = FECHA_MORA_V;
+
+  CURSOR C_RVRSNES IS
+    SELECT * FROM RVRSNES_SNSTROS RS
+     WHERE RS.RVS_NMRO_SNSTRO = SINIESTRO;
+
+  CURSOR C_SNSTROS_NUEVOS IS
+    SELECT * FROM SNSTROS_NUEVOS SN
+     WHERE SN.SNV_NMRO_ITEM = SOLICITUD
+       AND SN.SNV_FCHA_MRA = FECHA_MORA_V;
+
+  CURSOR C_SSPNSION_LMTE IS
+    SELECT * FROM SNSTROS_SUS_LIMITE SL
+     WHERE SL.SSL_NMRO_ITEM = SOLICITUD
+       AND SL.SSL_FCHA_MRA = FECHA_MORA_V;
+
+  CURSOR C_ORDNES_PGO IS
+    SELECT * FROM ORDNES_PGO O
+      WHERE O.OPG_NMRO_SLCTUD = SOLICITUD
+        AND O.OPG_NMRO_SNSTRO = SINIESTRO;
+
+  CURSOR C_CMNCCNES_CRTRA IS
+   SELECT * FROM CMNCCNES_REGISTRO_DATOS CC
+     WHERE CC.CRD_NMRO_SLCTUD = SOLICITUD
+       AND CC.CRD_FECHA_MORA = FECHA_MORA_V;
+
+  CURSOR RECIBOS IS
+    SELECT DISTINCT EST_NMRO_RCBO, EST_CIA_CDGO
+      FROM ESTADO_CTA_RCBOS
+     WHERE EST_SLCTUD = SOLICITUD
+       AND EST_FCHA_MRA = FECHA_MORA_V;
+
+   CURSOR C_PRCSOS_JDCLES IS
+     SELECT *
+       FROM PRCSOS_JDCLES
+      WHERE PRJ_NMRO_SLCTUD = SOLICITUD
+        AND PRJ_FECHA_MRA = FECHA_MORA_V;
+
+   CURSOR C_MVMNTOS_PRCSOS IS
+     SELECT *
+       FROM MVMNTOS_PRCSOS
+      WHERE MVP_NMRO_SLCTUD = SOLICITUD
+        AND MVP_FECHA_MRA = FECHA_MORA_V;
+
+   CURSOR C_DTLLES_MVMNTO_PRCSOS IS
+     SELECT *
+       FROM DTLLES_MVMNTO_PRCSOS
+      WHERE DMP_NMRO_SLCTUD = SOLICITUD
+        AND DMP_FCHA_MRA = FECHA_MORA_V;
+
+   CURSOR C_HSTRIA_UBCCNES IS
+     SELECT *
+       FROM HSTRIA_UBCCNES
+      WHERE HUB_NMRO_SLCTUD = SOLICITUD
+        AND HUB_FECHA_MRA = FECHA_MORA_V;
+
+   CURSOR C_HSTRIA_ABGDOS IS
+     SELECT *
+       FROM HSTRIA_ABGDOS
+      WHERE HAB_NMRO_SLCTUD = SOLICITUD
+        AND HAB_FCHA_MRA = FECHA_MORA_V;
+
+   CURSOR C_HSTRIA_JZGDOS IS
+     SELECT *
+       FROM HSTRIA_JZGDOS
+      WHERE HJZ_NMRO_SLCTUD = SOLICITUD
+        AND HJZ_FCHA_MRA = FECHA_MORA_V;
+
+   CURSOR C_DMNDDOS IS
+     SELECT *
+       FROM DMNDDOS
+      WHERE DMD_NMRO_SLCTUD = SOLICITUD
+        AND DMD_FCHA_MRA = FECHA_MORA_V;
+
+   CURSOR C_TTLOS IS
+     SELECT * FROM TITULOS_JDCLES TI
+      WHERE TI.TTJ_NMRO_SLCTUD = SOLICITUD
+        AND TI.TTJ_FCHA_MRA = FECHA_MORA_V;
+
+   CURSOR C_PGOS IS
+     SELECT *
+       FROM PGOS_ABGDOS
+      WHERE PAB_NMRO_SLCTUD = SOLICITUD
+        AND PAB_FECHA_MRA = FECHA_MORA_V;
+
+  R_OBJCNES                         C_OBJCNES%ROWTYPE;
+  R_PGOS_EFCTDOS                    C_PGOS_EFCTDOS%ROWTYPE;
+  R_BTCORA                          C_BTCORA%ROWTYPE;
+  R_FCHAS_LQDCION                   C_FCHAS_LQDCION%ROWTYPE;
+  R_CSNES_PLZAS                     C_CSNES_PLZAS%ROWTYPE;
+  R_DDAS_MRCDAS                     C_DDAS_MRCDAS%ROWTYPE;
+  R_FCTRAS                          C_FCTRAS%ROWTYPE;
+  R_FCTRAS_SNSTROS                  C_FCTRAS_SNSTROS%ROWTYPE;
+  R_RCBOS_CHQUES                    C_RCBOS_CHQUES%ROWTYPE;
+  R_RGSTRO_PDRES                    C_RGSTRO_PDRES%ROWTYPE;
+  R_RVRSNES                         C_RVRSNES%ROWTYPE;
+  R_SNSTROS_NUEVOS                  C_SNSTROS_NUEVOS%ROWTYPE;
+  R_SSPNSION_LMTE                   C_SSPNSION_LMTE%ROWTYPE;
+  R_ORDNES_PGO                      C_ORDNES_PGO%ROWTYPE;
+  R_CMNCCNES_CRTRA                  C_CMNCCNES_CRTRA%ROWTYPE;
+  R_PRCSOS_JDCLES                   C_PRCSOS_JDCLES%ROWTYPE;
+  R_MVMNTOS_PRCSOS                  C_MVMNTOS_PRCSOS%ROWTYPE;
+  R_DTLLES_MVMNTO_PRCSOS            C_DTLLES_MVMNTO_PRCSOS%ROWTYPE;
+  R_HSTRIA_UBCCNES                  C_HSTRIA_UBCCNES%ROWTYPE;
+  R_HSTRIA_ABGDOS                   C_HSTRIA_ABGDOS%ROWTYPE;
+  R_HSTRIA_JZGDOS                   C_HSTRIA_JZGDOS%ROWTYPE;
+  R_DMNDDOS                         C_DMNDDOS%ROWTYPE;
+  R_PGOS                            C_PGOS%ROWTYPE;
+  R_TTLOS                           C_TTLOS%ROWTYPE;
+  ACTUAL                            NUMBER(10);
+  RECIBO                            NUMBER(10);
+  CIA                               VARCHAR2(2);
+  EXISTE_AMN                        NUMBER;
+  EXISTE_AJ                         NUMBER;
+  EXISTE_VJ                         NUMBER;
+  EXISTE_DDP                        NUMBER;
+  EXISTE_CM                         NUMBER;
+  EXISTE_CD                         NUMBER;
+  EXISTE_DS                         NUMBER;
+  EXISTE_SS                         NUMBER;
+  EXISTE_DA                         NUMBER;
+  V_SUCURSAL                        VARCHAR2(6);
+  V_TEXTO                           LONG;
+  EXISTE_LIMITE                     NUMBER;
+
+BEGIN
+  lock table NMRCION_SNSTROS in ROW exclusive mode; -- nowait;
+
+OPEN C_CSN_NMRO_SNSTRO;
+  FETCH C_CSN_NMRO_SNSTRO INTO ACTUAL;
+  IF C_CSN_NMRO_SNSTRO%FOUND THEN
+    ACTUAL := ACTUAL + 1;
+    UPDATE NMRCION_SNSTROS
+       SET NMS_ULTMO_SNSTRO_ASGNDO = ACTUAL,
+           NMS_USRIO               = USUARIO,
+           NMS_FCHA_MDFCCION       = SYSDATE
+     WHERE NMS_RAM_CDGO = RAMO;
+  ELSE
+    IF C_CSN_NMRO_SNSTRO%NOTFOUND THEN
+      ACTUAL := 1;
+      INSERT INTO NMRCION_SNSTROS VALUES (1, RAMO, USUARIO, SYSDATE);
+    END IF;
+  END IF;
+  CLOSE C_CSN_NMRO_SNSTRO;
+
+  BEGIN
+    INSERT INTO DDAS_VGNTES_ARRNDMNTOS
+      (DVA_NMRO_SLCTUD,
+       DVA_FCHA_MRA,
+       DVA_DIAS_DSFSE,
+       DVA_VLOR_DSFSE,
+       DVA_FCHA_DSCPCION,
+       DVA_RPRTDO_CBRNZA,
+       DVA_USRIO,
+       DVA_FCHA_MDFCCION,
+       DVA_FCHA_ULTMO_PGO,
+       DVA_ESTDO,
+       DVA_FCHA_DVLCION,
+       DVA_FCHA_CRTA1,
+       DVA_FCHA_CRTA2)
+      SELECT SOLICITUD,
+             FECHA_MORA_N,
+             DVA_DIAS_DSFSE,
+             DVA_VLOR_DSFSE,
+             DVA_FCHA_DSCPCION,
+             DVA_RPRTDO_CBRNZA,
+             DVA_USRIO,
+             DVA_FCHA_MDFCCION,
+             DVA_FCHA_ULTMO_PGO,
+             DVA_ESTDO,
+             DVA_FCHA_DVLCION,
+             DVA_FCHA_CRTA1,
+             DVA_FCHA_CRTA2
+        FROM DDAS_VGNTES_ARRNDMNTOS
+       WHERE DVA_NMRO_SLCTUD = SOLICITUD
+         AND DVA_FCHA_MRA = FECHA_MORA_V;
+    IF SQL%NOTFOUND THEN
+      IF SQLCODE != 0000 THEN
+        MENSAJE := 'Error insertando en DDAS_VGNTES_ARRNDMNTOS' ||SQLERRM  ;
+        RETURN;
+      END IF;
+    END IF;
+  EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+          NULL;
+    WHEN OTHERS THEN
+      MENSAJE := 'Error1. Insertando en DDAS_VGNTES_ARRNDMNTOS' ||SQLERRM  ;
+      RETURN;
+  END;
+
+  BEGIN
+    INSERT INTO AVSOS_SNSTROS
+      SELECT SNA_NMRO_ITEM,
+             ACTUAL,
+             SNA_CAUSA_SNSTRO,
+             SNA_NMRO_PLZA,
+             SNA_CLSE_PLZA,
+             SNA_RAM_CDGO,
+             SNA_FCHA_AVSO,
+             FECHA_MORA_N,
+             SNA_VLOR_AVSDO,
+             SNA_VLOR_CNSTTDO,
+             SNA_VLOR_PGDO,
+             SNA_ESTDO_SNSTRO,
+             SNA_ESTDO_PGO,
+             SNA_VLOR_GSTOS,
+             SNA_FCHA_ESTDO,
+             SNA_VLOR_SLVMNTO_RCBRO,
+             SNA_NMRO_CRTFCDO,
+             SNA_USRIO,
+             SYSDATE,
+             SNA_FCHA_ULTMO_PGO,
+             'SE CREA NUEVO SINIESTRO CON NUEVA FECHA DE MORA REEMPLAZANDO SINIESTRO ' ||TO_CHAR(SINIESTRO) || ' A PETICION DEL USUARIO ' || USUARIO || ' ' ||TO_CHAR(SYSDATE),
+             SNA_TPO_CBRNZA,
+             SNA_TPOID_CBRDOR,
+             SNA_NMROID_CBRDOR,
+             CLASIFICACION_CASO,
+             FECHA_CLASIFICACION,
+             SNA_SNSTRO_SIMON,
+             SNA_ESTDO_ANTRIOR,
+             SNA_NMRO_EXPDNTE,
+             SNA_MCA_ESTDO,
+             SNA_POLIZA_SIMON
+        FROM AVSOS_SNSTROS
+       WHERE SNA_NMRO_ITEM = SOLICITUD
+         AND SNA_FCHA_SNSTRO = FECHA_MORA_V
+         AND SNA_NMRO_PLZA = POLIZA;
+    IF SQL%NOTFOUND THEN
+      IF SQLCODE != 0000 THEN
+        MENSAJE := 'Error insertando en AVSOS_SNSTROS' ||SQLERRM  ;
+        RETURN;
+      END IF;
+    END IF;
+  EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+          NULL;
+    WHEN OTHERS THEN
+      MENSAJE := 'Error1. Insertando en AVSOS_SNSTROS' ||SQLERRM  ;
+      RETURN;
+  END;
+
+  BEGIN
+    INSERT INTO AMPROS_SNSTROS
+      SELECT ACTUAL,
+             AMS_CDGO_AMPRO,
+             AMS_RAM_CDGO,
+             AMS_NMRO_ITEM,
+             FECHA_MORA_N,
+             AMS_NMRO_CRTFCDO,
+             AMS_CDGO_CAUSA,
+             AMS_VLOR_AVSDO,
+             AMS_VLOR_CNSTTDO,
+             AMS_VLOR_PGDO,
+             AMS_ESTDO,
+             AMS_USRIO,
+             AMS_FCHA_MDFCCION
+        FROM AMPROS_SNSTROS
+       WHERE AMS_NMRO_ITEM = SOLICITUD
+         AND AMS_FCHA_MRA = FECHA_MORA_V;
+    IF SQL%NOTFOUND THEN
+      IF SQLCODE != 0000 THEN
+        MENSAJE := 'Error insertando en AMPROS_SNSTROS' ||SQLERRM  ;
+        RETURN;
+      END IF;
+    END IF;
+  EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+          NULL;
+    WHEN OTHERS THEN
+      MENSAJE := 'Error1. Insertando en AMPROS_SNSTROS' ||SQLERRM  ;
+      RETURN;
+  END;
+
+  BEGIN
+    INSERT INTO VLRES_SNSTROS
+      SELECT VSN_CNCPTO_VLOR,
+             ACTUAL,
+             VSN_CDGO_AMPRO,
+             VSN_RAM_CDGO,
+             VSN_LQDCION,
+             VSN_VLOR_AVSDO,
+             VSN_VLOR_CNSTTDO,
+             VSN_FCHA_RPRTE,
+             VSN_ESTDO,
+             VSN_USRIO,
+             VSN_FCHA_MDFCCION,
+             VSN_PRDOS,
+             VSN_FCHA_DSDE,
+             VSN_FCHA_HSTA
+        FROM VLRES_SNSTROS
+       WHERE VSN_NMRO_SNSTRO = SINIESTRO
+         AND VSN_RAM_CDGO = RAMO;
+    IF SQL%NOTFOUND THEN
+      IF SQLCODE != 0000 THEN
+        MENSAJE := 'Error insertando en VLRES_SNSTROS' ||SQLERRM  ;
+        RETURN;
+      END IF;
+    END IF;
+  EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+      NULL;
+    WHEN OTHERS THEN
+      MENSAJE := 'Error1. Insertando en VLRES_SNSTROS' ||SQLERRM  ;
+      RETURN;
+  END;
+
+  BEGIN
+    INSERT INTO VLRES_DDAS
+      SELECT VLD_NMRO_SLCTUD,
+             FECHA_MORA_N,
+             VLD_RAM_CDGO,
+             VLD_CNCPTO_VLOR,
+             ACTUAL,
+             VLD_CDGO_AMPRO,
+             VLD_VLOR_PGDO_CIA,
+             VLD_VLOR_CNSTTDO,
+             VLD_VLOR_PGDO_AFNZDO,
+             VLD_USRIO,
+             VLD_FCHA_MDFCCION,
+             VLD_ORGEN,
+             VLD_NMRO_PGOS
+        FROM VLRES_DDAS
+       WHERE VLD_NMRO_SLCTUD = SOLICITUD
+         AND VLD_FCHA_MRA = FECHA_MORA_V;
+    IF SQL%NOTFOUND THEN
+      IF SQLCODE != 0000 THEN
+        MENSAJE := 'Error insertando en VLRES_DDAS' || SQLERRM  ;
+        RETURN;
+      END IF;
+    END IF;
+  EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+          NULL;
+    WHEN OTHERS THEN
+      MENSAJE := 'Error1. Insertando en VLRES_DDAS' || SQLERRM  ;
+      RETURN;
+  END;
+
+  BEGIN
+    INSERT INTO VLRES_DDAS_TMP
+      SELECT VLD_NMRO_SLCTUD,
+             FECHA_MORA_N,
+             VLD_RAM_CDGO,
+             VLD_CNCPTO_VLOR,
+             ACTUAL,
+             VLD_CDGO_AMPRO,
+             VLD_VLOR_PGDO_CIA,
+             VLD_VLOR_CNSTTDO,
+             VLD_VLOR_PGDO_AFNZDO,
+             VLD_USRIO,
+             VLD_FCHA_MDFCCION,
+             VLD_ORGEN,
+             VLD_NMRO_PGOS
+        FROM VLRES_DDAS_TMP
+       WHERE VLD_NMRO_SLCTUD = SOLICITUD
+         AND VLD_FCHA_MRA = FECHA_MORA_V;
+    IF SQL%NOTFOUND THEN
+      IF SQLCODE != 0000 THEN
+        MENSAJE := 'Error insertando en VLRES_DDAS_TMP' || SQLERRM  ;
+        RETURN;
+      END IF;
+    END IF;
+  EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+          NULL;
+    WHEN OTHERS THEN
+      MENSAJE := 'Error1. Insertando en VLRES_DDAS_TMP' || SQLERRM  ;
+      RETURN;
+  END;
+
+  BEGIN
+    UPDATE LQDCNES_DTLLE
+       SET LQT_NMRO_SNSTRO = ACTUAL,
+           LQT_FCHA_MRA = FECHA_MORA_N
+     WHERE LQT_NMRO_SNSTRO = SINIESTRO
+       AND LQT_FCHA_MRA = FECHA_MORA_V;
+    IF SQL%NOTFOUND THEN
+      IF SQLCODE != 0000 THEN
+        MENSAJE := 'Error Actualizando en LQDCNES_DTLLE' ||SQLERRM  ;
+        RETURN;
+      END IF;
+    END IF;
+  EXCEPTION
+    WHEN OTHERS THEN
+      MENSAJE := 'Error1. Actualizando en LQDCNES_DTLLE' ||SQLERRM  ;
+      RETURN;
+  END;
+
+  BEGIN
+    INSERT INTO DDAS_ARRNDTRIOS
+      SELECT DAR_NMRO_SLCTUD,
+             FECHA_MORA_N,
+             DAR_TPO_ARRNDTRIO,
+             DAR_TPO_IDNTFCCION,
+             DAR_NMRO_IDNTFCCION,
+             DAR_NMRO_PLZA,
+             DAR_CLSE_PLZA,
+             DAR_RAM_CDGO
+        FROM DDAS_ARRNDTRIOS
+       WHERE DAR_NMRO_SLCTUD = SOLICITUD
+         AND DAR_FCHA_MRA = FECHA_MORA_V;
+    IF SQL%NOTFOUND THEN
+      IF SQLCODE != 0000 THEN
+        MENSAJE := 'Error insertando en DDAS_ARRNDTRIOS' ||SQLERRM  ;
+        RETURN;
+      END IF;
+    END IF;
+  EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+          NULL;
+    WHEN OTHERS THEN
+      MENSAJE := 'Error1. Insertando en DDAS_ARRNDTRIOS' ||SQLERRM  ;
+      RETURN;
+  END;
+
+  SELECT COUNT(8)
+    INTO EXISTE_AMN
+    FROM AMNTOS_SNSTROS
+   WHERE AMN_NMRO_SNSTRO = SINIESTRO
+     AND AMN_RAM_CDGO = RAMO;
+
+  IF NVL(EXISTE_AMN,0) > 0 THEN
+    BEGIN
+      INSERT INTO AMNTOS_SNSTROS
+        SELECT ACTUAL,
+               AMN_RAM_CDGO,
+               AMN_CDGO_AMPRO,
+               AMN_FCHA_AMNTO,
+               AMN_CNCPTO,
+               AMN_VLOR,
+               AMN_VLOR_FRA,
+               AMN_SLCTUD,
+               FECHA_MORA_N,
+               AMN_USRIO,
+               AMN_FCHA_ACTLZCION,
+               AMN_OBSRVCION
+          FROM AMNTOS_SNSTROS
+         WHERE AMN_NMRO_SNSTRO = SINIESTRO
+           AND AMN_RAM_CDGO = RAMO;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error insertando en AMNTOS_SNSTROS' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+          NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en AMNTOS_SNSTROS' ||SQLERRM  ;
+        RETURN;
+    END;
+  -- SE DEJA EN UNA SOLA ACTUALIZACION LAS DOS FECHAS Y LA CONDICION SE ADICIONA CON LA FECHA DE ACTUALIZACION
+  -- MANTIS # 11552
+    BEGIN
+      UPDATE AMNTOS_SNSTROS
+         SET AMN_FCHA_AMNTO = FECHA_MORA_N,
+             AMN_FCHA_ACTLZCION = FECHA_MORA_N
+       WHERE AMN_NMRO_SNSTRO = ACTUAL
+         AND AMN_RAM_CDGO = RAMO
+         AND TRUNC(AMN_FCHA_AMNTO) = TRUNC(FECHA_MORA_V)
+         AND TRUNC(AMN_FCHA_ACTLZCION) = TRUNC(FECHA_MORA_V);
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error actualizando fecha de Aumento en AMNTOS_SNSTROS' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1 actualizando fecha de Aumento en AMNTOS_SNSTROS' ||SQLERRM  ;
+        RETURN;
+    END;
+  END IF;
+
+  SELECT COUNT(8)
+    INTO EXISTE_AJ
+    FROM AJSTES_SNSTROS
+   WHERE AJS_NMRO_SNSTRO = SINIESTRO
+     AND AJS_RAM_CDGO = RAMO;
+
+  IF NVL(EXISTE_AJ,0) > 0 THEN
+    BEGIN
+      INSERT INTO AJSTES_SNSTROS
+        SELECT AJS_FCHA_AJSTE,
+               AJS_CDGO_AJSTDOR,
+               AJS_RAM_CDGO,
+               ACTUAL,
+               AJS_VLOR_AJSTE,
+               AJS_VLOR_HNRRIOS,
+               AJS_USRIO,
+               AJS_FCHA_MDFCCION
+          FROM AJSTES_SNSTROS
+         WHERE AJS_NMRO_SNSTRO = SINIESTRO
+           AND AJS_RAM_CDGO = RAMO;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error Insertando en AJSTES_SNSTROS' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+          NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en AJSTES_SNSTROS' ||SQLERRM  ;
+        RETURN;
+    END;
+  END IF;
+
+  SELECT COUNT(8)
+    INTO EXISTE_VJ
+    FROM VLRES_AJSTDOS
+   WHERE VAJ_NMRO_SNSTRO = SINIESTRO
+     AND VAJ_RAM_CDGO = RAMO;
+
+  IF NVL(EXISTE_VJ,0) > 0 THEN
+    BEGIN
+      INSERT INTO VLRES_AJSTDOS
+        SELECT VAJ_RAM_CDGO,
+               VAJ_CDGO_AMPRO,
+               VAJ_CDGO_AJSTDOR,
+               ACTUAL,
+               VAJ_CNCPTO_VLOR,
+               VAJ_FCHA_AJSTE,
+               VAJ_VLOR,
+               VAJ_USRIO,
+               VAJ_FCHA_MDFCCION
+          FROM VLRES_AJSTDOS
+         WHERE VAJ_NMRO_SNSTRO = SINIESTRO
+           AND VAJ_RAM_CDGO = RAMO;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error Insertando en VLRES_AJSTDOS' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+          NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en VLRES_AJSTDOS' ||SQLERRM  ;
+        RETURN;
+    END;
+  END IF;
+
+
+  BEGIN
+    INSERT INTO CASOS_CBRNZA
+      SELECT CSC_CDGO_CBRDOR,
+             CSC_NMRO_SLCTUD,
+             FECHA_MORA_N,
+             CSC_FCHA_ASGNCION,
+             CSC_FCHA_APRTRA,
+             CSC_ESTDO_CBRANZA,
+             CSC_TPO_CBRNZA,
+             CSC_USRIO,
+             CSC_FCHA_MDFCCION
+        FROM CASOS_CBRNZA
+       WHERE CSC_NMRO_SLCTUD = SOLICITUD
+         AND CSC_FCHA_MRA = FECHA_MORA_V;
+    IF SQL%NOTFOUND THEN
+      IF SQLCODE != 0000 THEN
+        MENSAJE := 'Error insertando en CASOS_CBRNZA' || SQLERRM  ;
+        RETURN;
+      END IF;
+    END IF;
+  EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+          NULL;
+    WHEN OTHERS THEN
+      MENSAJE := 'Error1. Insertando en CASOS_CBRNZA' ||SQLERRM  ;
+      RETURN;
+  END;
+
+
+  -- DAP. 18/03/2008 se presentaba error
+  -- SELECT LIR_NMRO_ITEM, LIR_FCHA_MRA, LIR_NMRO_PLZA, LIR_CLSE_PLZA, LIR_RAM_CDGO,
+  -- Se quita el insert de limites porque se coloca trigger para insertar cuando no exista
+
+  SELECT COUNT(8)
+    INTO EXISTE_LIMITE
+    FROM LMTES_IND_RSGOS
+   WHERE LIR_NMRO_ITEM = SOLICITUD
+     AND LIR_FCHA_MRA = FECHA_MORA_N;
+
+  IF NVL(EXISTE_LIMITE,0) = 0 THEN
+    BEGIN
+      INSERT INTO LMTES_IND_RSGOS
+        SELECT LIR_NMRO_ITEM,
+               FECHA_MORA_N,
+               LIR_NMRO_PLZA,
+               LIR_CLSE_PLZA,
+               LIR_RAM_CDGO,
+               LIR_LMTE_INDMNZCION,
+               LIR_USRIO,
+               LIR_FCHA_MDFCCION,
+               LIR_FCHA_RTRO,
+               LIR_FCHA_INGRSO,
+               LIR_FCHA_AMNTO,
+               LIR_CNTDAD_PGOS,
+               LIR_ULTMA_FCHA_HSTA,
+               LIR_OBSRVCNES,
+               LIR_CNTDAD_AUMNTO
+          FROM LMTES_IND_RSGOS
+         WHERE LIR_NMRO_ITEM = SOLICITUD
+           AND LIR_FCHA_MRA = FECHA_MORA_V;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error insertando en LMTES_IND_RSGOS' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+          NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en LMTES_IND_RSGOS' ||SQLERRM  ;
+        RETURN;
+    END;
+  ELSE
+    BEGIN
+      UPDATE LMTES_IND_RSGOS
+         SET LIR_CNTDAD_PGOS = (SELECT LIR_CNTDAD_PGOS FROM LMTES_IND_RSGOS
+                                 WHERE LIR_NMRO_ITEM = SOLICITUD
+                                   AND LIR_FCHA_MRA = FECHA_MORA_V),
+             LIR_ULTMA_FCHA_HSTA  = (SELECT LIR_ULTMA_FCHA_HSTA FROM LMTES_IND_RSGOS
+                                      WHERE LIR_NMRO_ITEM = SOLICITUD
+                                        AND LIR_FCHA_MRA = FECHA_MORA_V)
+       WHERE LIR_NMRO_ITEM = SOLICITUD
+         AND LIR_FCHA_MRA = FECHA_MORA_N;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error actualizando en LMTES_IND_RSGOS' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1 actualizando en LMTES_IND_RSGOS' ||SQLERRM  ;
+        RETURN;
+    END;
+  END IF;
+
+  SELECT COUNT(8)
+    INTO EXISTE_DDP
+    FROM DDAS_PLZAS
+   WHERE DDP_NMRO_SLCTUD = SOLICITUD
+     AND DDP_FCHA_MRA = FECHA_MORA_V;
+
+  IF NVL(EXISTE_DDP,0) > 0 THEN
+    BEGIN
+      UPDATE DDAS_PLZAS
+         SET DDP_FCHA_MRA = FECHA_MORA_N
+       WHERE DDP_NMRO_SLCTUD = SOLICITUD
+         AND DDP_FCHA_MRA = FECHA_MORA_V;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error Actualizando en DDAS_PLZAS' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Actualizando en DDAS_PLZAS' ||SQLERRM  ;
+        RETURN;
+    END;
+  END IF;
+
+  SELECT COUNT(8)
+    INTO EXISTE_CM
+    FROM COLAS_MRCCINES
+   WHERE CLM_NMRO_SLCTUD = SOLICITUD
+     AND CLM_FCHA_MRA = FECHA_MORA_V;
+
+  IF NVL(EXISTE_CM,0) > 0 THEN
+    BEGIN
+      INSERT INTO COLAS_MRCCINES
+        SELECT CLM_SCNCIA,
+               CLM_NMRO_SLCTUD,
+               FECHA_MORA_N,
+               CLM_CDGO_CBRDOR,
+               CLM_TPO_LLMDA,
+               CLM_USRIO,
+               CLM_FCHA_MDFCCION
+          FROM COLAS_MRCCINES
+         WHERE CLM_NMRO_SLCTUD = SOLICITUD
+           AND CLM_FCHA_MRA = FECHA_MORA_V;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error Insertando en COLAS_MRCCIONES' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+          NULL;
+      WHEN NO_DATA_FOUND THEN
+        NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en COLAS_MRCCIONES' ||SQLERRM  ;
+        RETURN;
+    END;
+  END IF;
+
+  SELECT COUNT(8)
+    INTO EXISTE_CD
+    FROM CNTRTOS_DVLVER
+   WHERE CND_NMRO_SNSTRO = SINIESTRO
+     AND CND_RAM_CDGO = RAMO;
+
+  IF NVL(EXISTE_CD,0) > 0 THEN
+    BEGIN
+      INSERT INTO CNTRTOS_DVLVER
+        SELECT CND_CDGO_DVLCION,
+               CND_FCHA_DVLCION,
+               ACTUAL,
+               CND_RAM_CDGO,
+               CND_USRIO,
+               CND_FCHA_MDFCCION,
+               CND_TXTO,
+               CND_MDLO_RLZA
+          FROM CNTRTOS_DVLVER
+         WHERE CND_NMRO_SNSTRO = SINIESTRO
+           AND CND_RAM_CDGO = RAMO;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error Insertando en CNTRTOS_DVLVER' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+          NULL;
+      WHEN NO_DATA_FOUND THEN
+        NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en CNTRTOS_DVLVER' ||SQLERRM  ;
+        RETURN;
+    END;
+  END IF;
+
+  SELECT COUNT(8)
+    INTO EXISTE_DS
+    FROM DSCPCNES_EFCTDAS
+   WHERE DSE_NMRO_SNSTRO = SINIESTRO
+     AND DSE_RAM_CDGO = RAMO;
+
+  IF NVL(EXISTE_DS,0) > 0 THEN
+    BEGIN
+      INSERT INTO DSCPCNES_EFCTDAS
+        SELECT ACTUAL,
+               DSE_RAM_CDGO,
+               DSE_FCHA_DSCPCION,
+               DSE_USRIO,
+               DSE_FCHA_ACTLZCION
+          FROM DSCPCNES_EFCTDAS
+         WHERE DSE_NMRO_SNSTRO = SINIESTRO
+           AND DSE_RAM_CDGO = RAMO;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error Insertando en DSCPCNES_EFCTDAS' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+          NULL;
+      WHEN NO_DATA_FOUND THEN
+        NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en DSCPCNES_EFCTDAS' ||SQLERRM  ;
+        RETURN;
+    END;
+  END IF;
+
+  SELECT COUNT(8)
+    INTO EXISTE_SS
+    FROM SSPNSNES_SNSTROS
+   WHERE SSN_NMRO_SNSTRO = SINIESTRO
+     AND SSN_RAM_CDGO = RAMO;
+
+  IF NVL(EXISTE_SS,0) > 0 THEN
+    BEGIN
+      INSERT INTO SSPNSNES_SNSTROS
+        (SSN_NMRO_SNSTRO,
+         SSN_RAM_CDGO,
+         SSN_CDGO_AMPRO,
+         SSN_CDGO_SSPNSION,
+         SSN_FCHA_SSPNSION,
+         SSN_TXTO,
+         SSN_USRIO,
+         SSN_FCHA_ACTLZCION,
+         SSN_FCHA_LVNTE_SSPNSION,
+         SSN_CDGO_MDLO)
+        SELECT ACTUAL,
+               SSN_RAM_CDGO,
+               SSN_CDGO_AMPRO,
+               SSN_CDGO_SSPNSION,
+               SSN_FCHA_SSPNSION,
+               SSN_TXTO,
+               SSN_USRIO,
+               SSN_FCHA_ACTLZCION,
+               SSN_FCHA_LVNTE_SSPNSION,
+               SSN_CDGO_MDLO
+          FROM SSPNSNES_SNSTROS
+         WHERE SSN_NMRO_SNSTRO = SINIESTRO
+           AND SSN_RAM_CDGO = RAMO;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error Insertando en SSPNSNES_SNSTROS' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+          NULL;
+      WHEN NO_DATA_FOUND THEN
+        NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en SSPNSNES_SNSTROS' ||SQLERRM  ;
+        RETURN;
+    END;
+  END IF;
+
+  SELECT COUNT(8)
+    INTO EXISTE_DA
+    FROM DDCCNES_AUTMTCAS
+   WHERE DAU_NMRO_SLCTUD = SOLICITUD
+     AND DAU_FCHA_MRA = FECHA_MORA_V;
+
+  IF NVL(EXISTE_DA,0) > 0 THEN
+    BEGIN
+      INSERT INTO DDCCNES_AUTMTCAS
+        SELECT DAU_NMRO_SLCTUD,
+               FECHA_MORA_N,
+               DAU_FCHA_DDCCION,
+               DAU_CDGO_AMPRO,
+               DAU_RAM_CDGO,
+               DAU_CNCPTO_VLOR,
+               DAU_VLOR,
+               DAU_DSCRPCION,
+               DAU_USRIO,
+               DAU_FCHA_MDFCCION,
+               DAU_FCHA_DSDE,
+               DAU_FCHA_HSTA
+          FROM DDCCNES_AUTMTCAS
+         WHERE DAU_NMRO_SLCTUD = SOLICITUD
+           AND DAU_FCHA_MRA = FECHA_MORA_V;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error Insertando en DDCCNES_AUTMTCAS' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+          NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en DDCCNES_AUTMTCAS' ||SQLERRM  ;
+        RETURN;
+    END;
+  END IF;
+
+  OPEN C_OBJCNES;
+  LOOP
+    FETCH C_OBJCNES INTO R_OBJCNES;
+    IF C_OBJCNES%NOTFOUND THEN
+      EXIT;
+    END IF;
+
+    V_TEXTO := R_OBJCNES.OBS_TXTO;
+
+    BEGIN
+    INSERT INTO OBJCNES_SNSTROS
+      SELECT OBS_CDGO_OBJCION,
+             OBS_CDGO_AMPRO,
+             ACTUAL,
+             OBS_RAM_CDGO,
+             OBS_USRIO,
+             OBS_FCHA_MDFCCION,
+             OBS_FCHA_OBJCION,
+             OBS_FCHA_SBSNCION,
+             OBS_SUBSANA,
+             V_TEXTO,
+             OBS_TPO
+        FROM OBJCNES_SNSTROS
+       WHERE OBS_CDGO_OBJCION = R_OBJCNES.OBS_CDGO_OBJCION
+         AND OBS_CDGO_AMPRO = R_OBJCNES.OBS_CDGO_AMPRO
+         AND OBS_NMRO_SNSTRO = R_OBJCNES.OBS_NMRO_SNSTRO
+         AND OBS_RAM_CDGO = R_OBJCNES.OBS_RAM_CDGO;
+    IF SQL%NOTFOUND THEN
+      IF SQLCODE != 0000 THEN
+        MENSAJE := 'Error Insertando en OBJCNES_SNSTROS' ||SQLERRM  ;
+        RETURN;
+      END IF;
+    END IF;
+  EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        NULL;
+    WHEN OTHERS THEN
+      MENSAJE := 'Error1. Insertando en OBJCNES_SNSTROS' ||SQLERRM  ;
+      RETURN;
+  END;
+  END LOOP;
+  CLOSE C_OBJCNES;
+
+
+  OPEN C_BTCORA;
+  LOOP
+    FETCH C_BTCORA INTO R_BTCORA;
+    IF C_BTCORA%NOTFOUND THEN
+      EXIT;
+    END IF;
+
+    BEGIN
+      INSERT INTO BITCRAS_LLMDAS
+        SELECT FECHA_MORA_N,
+               BLL_NMRO_SLCTUD,
+               BLL_CDGO_CBRDOR,
+               BLL_SCNCIA,
+               BLL_CDGO_RSLTDO,
+               BLL_FCHA_INCIO,
+               BLL_FCHA_FNAL,
+               BLL_NMRO_TLFNO,
+               BLL_OBSRVCION,
+               BLL_USRIO,
+               BLL_FCHA_MDFCCION
+          FROM BITCRAS_LLMDAS
+         WHERE BLL_FCHA_MRA = R_BTCORA.BLL_FCHA_MRA
+           AND BLL_NMRO_SLCTUD = R_BTCORA.BLL_NMRO_SLCTUD;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error Insertando en BITCRAS_LLMDAS' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+        NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en BITCRAS_LLMDAS' ||SQLERRM  ;
+        RETURN;
+    END;
+  END LOOP;
+  CLOSE C_BTCORA;
+
+
+  OPEN C_PGOS_EFCTDOS;
+  LOOP
+    FETCH C_PGOS_EFCTDOS INTO R_PGOS_EFCTDOS;
+    IF C_PGOS_EFCTDOS%NOTFOUND THEN
+      EXIT;
+    END IF;
+
+    BEGIN
+      INSERT INTO PGOS_EFCTDOS_SNSTROS
+        VALUES(R_PGOS_EFCTDOS.PES_FCHA_PGO,
+               R_PGOS_EFCTDOS.PES_NMRO_PLZA,
+               R_PGOS_EFCTDOS.PES_CLSE_PLZA,
+               R_PGOS_EFCTDOS.PES_RAM_CDGO,
+               ACTUAL,
+               R_PGOS_EFCTDOS.PES_VLOR_PGDO,
+               R_PGOS_EFCTDOS.PES_VLOR_SNSTRO,
+               R_PGOS_EFCTDOS.PES_VLOR_RCPRCNES,
+               R_PGOS_EFCTDOS.PES_FCHA_DSDE,
+               R_PGOS_EFCTDOS.PES_FCHA_HSTA,
+               R_PGOS_EFCTDOS.PES_NMRO_DIAS,
+               R_PGOS_EFCTDOS.PES_TPO_PAGO,
+               R_PGOS_EFCTDOS.PES_USRIO,
+               R_PGOS_EFCTDOS.PES_FCHA_MDFCCION);
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+        NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error. Insertando en PGOS_EFCTDOS_SNSTROS' ||SQLERRM  ;
+        RETURN;
+    END;
+
+    BEGIN
+      UPDATE VLRES_PGO_EFCTDOS
+         SET VPE_NMRO_SNSTRO = ACTUAL
+       WHERE VPE_NMRO_SNSTRO = R_PGOS_EFCTDOS.PES_NMRO_SNSTRO
+         AND VPE_FCHA_PGO = R_PGOS_EFCTDOS.PES_FCHA_PGO;
+    EXCEPTION
+      WHEN OTHERS THEN
+        MENSAJE := 'Error. Actualizando en PGOS_EFCTDOS_SNSTROS' ||SQLERRM  ;
+        RETURN;
+    END;
+
+    BEGIN
+      DELETE PGOS_EFCTDOS_SNSTROS
+       WHERE PES_NMRO_SNSTRO = R_PGOS_EFCTDOS.PES_NMRO_SNSTRO
+         AND PES_FCHA_PGO = R_PGOS_EFCTDOS.PES_FCHA_PGO;
+    EXCEPTION
+      WHEN OTHERS THEN
+        MENSAJE := 'Error. Borrando en PGOS_EFCTDOS_SNSTROS' ||SQLERRM  ;
+        RETURN;
+    END;
+  END LOOP;
+  CLOSE C_PGOS_EFCTDOS;
+
+
+  OPEN C_FCHAS_LQDCION;
+  LOOP
+    FETCH C_FCHAS_LQDCION INTO R_FCHAS_LQDCION;
+    IF C_FCHAS_LQDCION%NOTFOUND THEN
+      EXIT;
+    END IF;
+
+    BEGIN
+      INSERT INTO FCHAS_LQDCION_SLCTDES
+        SELECT FLS_SECUENCIA,
+               FLS_NMRO_SLCTUD,
+               FECHA_MORA_N,
+               FLS_FCHA_PGO,
+               FLS_NMRO_PLZA,
+               FLS_TPO_LQDCION,
+               FLS_PRDO,
+               FLS_FCHA_LQDCION,
+               FLS_OBSRVCION,
+               FLS_USRIO_MDFCCION,
+               FLS_FCHA_MDFCCION
+          FROM FCHAS_LQDCION_SLCTDES
+         WHERE FLS_NMRO_SLCTUD= R_FCHAS_LQDCION.FLS_NMRO_SLCTUD
+           AND FLS_FCHA_MRA  =  R_FCHAS_LQDCION.FLS_FCHA_MRA;
+    IF SQL%NOTFOUND THEN
+      IF SQLCODE != 0000 THEN
+        MENSAJE := 'Error Insertando en FCHAS_LQDCION_SLCTDES' ||SQLERRM  ;
+        RETURN;
+      END IF;
+    END IF;
+  EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        NULL;
+    WHEN OTHERS THEN
+      MENSAJE := 'Error1. Insertando en FCHAS_LQDCION_SLCTDES' ||SQLERRM  ;
+      RETURN;
+  END;
+
+  END LOOP;
+  CLOSE C_FCHAS_LQDCION;
+
+
+  OPEN C_CSNES_PLZAS;
+  LOOP
+    FETCH C_CSNES_PLZAS INTO R_CSNES_PLZAS;
+    IF C_CSNES_PLZAS%NOTFOUND THEN
+      EXIT;
+    END IF;
+
+    BEGIN
+      INSERT INTO CSNES_PLZAS
+        SELECT CSP_SLCTUD,
+               FECHA_MORA_N,
+               CSP_PLZA_NUEVA,
+               CSP_PLZA_ANTRIOR,
+               CSP_USRIO,
+               CSP_FCHA_MDFCCION
+          FROM CSNES_PLZAS
+         WHERE CSP_SLCTUD = R_CSNES_PLZAS.CSP_SLCTUD
+           AND CSP_FCHA_MRA = R_CSNES_PLZAS.CSP_FCHA_MRA;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error Insertando en CSNES_PLZAS' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+        NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en CSNES_PLZAS' ||SQLERRM  ;
+        RETURN;
+    END;
+
+  END LOOP;
+  CLOSE C_CSNES_PLZAS;
+
+  OPEN C_DDAS_MRCDAS;
+  LOOP
+    FETCH C_DDAS_MRCDAS INTO R_DDAS_MRCDAS;
+    IF C_DDAS_MRCDAS%NOTFOUND THEN
+      EXIT;
+    END IF;
+
+    BEGIN
+      INSERT INTO DDAS_MRCDAS_SNDAS
+        SELECT DMS_NMRO_SLCTUD,
+               FECHA_MORA_N,
+               DMS_MRCA_SNDA,
+               DMS_USRIO_CRCION,
+               DMS_FCHA_CRCION,
+               DMS_USRIO_MDFCCION,
+               DMS_FCHA_MDFCCION,
+               DMS_LIQUIDACION_BOLIVAR,
+               DMS_LIQUIDACION_LIB,
+               DMS_COBRADOR
+          FROM DDAS_MRCDAS_SNDAS
+         WHERE DMS_NMRO_SLCTUD = R_DDAS_MRCDAS.DMS_NMRO_SLCTUD
+           AND DMS_FCHA_MRA    = R_DDAS_MRCDAS.DMS_FCHA_MRA;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error Insertando en DDAS_MRCDAS_SNDAS' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+        NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en DDAS_MRCDAS_SNDAS' ||SQLERRM  ;
+        RETURN;
+    END;
+
+  END LOOP;
+  CLOSE C_DDAS_MRCDAS;
+
+  OPEN C_FCTRAS;
+  LOOP
+    FETCH C_FCTRAS INTO R_FCTRAS;
+    IF C_FCTRAS%NOTFOUND THEN
+      EXIT;
+    END IF;
+
+    BEGIN
+      INSERT INTO FCTRAS_AFCTDAS_SNSTRO
+        SELECT FAS_SCNCIA,
+               ACTUAL,
+               FAS_RAM_CDGO,
+               FAS_CNCPTO_VLOR,
+               FAS_TPO_SRVCIO,
+               FAS_FCHA_DSDE,
+               FAS_FCHA_HSTA,
+               FAS_NMRO_SLCTUD,
+               FECHA_MORA_N,
+               FAS_USRIO,
+               FAS_FCHA_MDFCCION
+          FROM FCTRAS_AFCTDAS_SNSTRO
+         WHERE FAS_NMRO_SNSTRO = R_FCTRAS.FAS_NMRO_SNSTRO
+           AND FAS_RAM_CDGO    = R_FCTRAS.FAS_RAM_CDGO;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error Insertando en FCTRAS_AFCTDAS_SNSTRO ' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+        NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en FCTRAS_AFCTDAS_SNSTRO ' ||SQLERRM  ;
+        RETURN;
+    END;
+
+  END LOOP;
+  CLOSE C_FCTRAS;
+
+  OPEN C_FCTRAS_SNSTROS;
+  LOOP
+    FETCH C_FCTRAS_SNSTROS INTO R_FCTRAS_SNSTROS;
+    IF C_FCTRAS_SNSTROS%NOTFOUND THEN
+      EXIT;
+    END IF;
+
+    BEGIN
+      INSERT INTO FCTRAS_SNSTROS
+        SELECT ACTUAL,
+               FAS_RAM_CDGO,
+               FAS_CNCPTO_VLOR,
+               FAS_TPO_SRVCIO,
+               FAS_FCHA_DSDE,
+               FAS_FCHA_HSTA,
+               FAS_NMRO_SLCTUD,
+               FECHA_MORA_N,
+               FAS_USRIO,
+               FAS_FCHA_MDFCCION
+          FROM FCTRAS_SNSTROS
+         WHERE FAS_NMRO_SNSTRO = R_FCTRAS_SNSTROS.FAS_NMRO_SNSTRO
+           AND FAS_RAM_CDGO = R_FCTRAS_SNSTROS.FAS_RAM_CDGO;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error Insertando en FCTRAS_SNSTRO ' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+        NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en FCTRAS_SNSTRO ' ||SQLERRM  ;
+        RETURN;
+    END;
+
+  END LOOP;
+  CLOSE C_FCTRAS_SNSTROS;
+
+  OPEN C_RCBOS_CHQUES;
+  LOOP
+    FETCH C_RCBOS_CHQUES INTO R_RCBOS_CHQUES;
+    IF C_RCBOS_CHQUES%NOTFOUND THEN
+      EXIT;
+    END IF;
+
+    BEGIN
+      INSERT INTO RCBOS_CHQUES
+        SELECT CHQ_CHQ_NMRO,
+               EF_ENF_CDGO_ENTDAD,
+               RBH_CIA_TRONA,
+               RBH_NMRO_RCBO_TRONA,
+               RBH_SES_NMRO,
+               FECHA_MORA_N,
+               RBH_POL_NMRO_PLZA,
+               RBH_CBR_CDGO,
+               RBH_VALORNTA,
+               RBH_VALORSLDO
+          FROM RCBOS_CHQUES
+         WHERE RBH_SES_NMRO = R_RCBOS_CHQUES.RBH_SES_NMRO
+           AND RBH_VLD_FCHA_MRA = R_RCBOS_CHQUES.RBH_VLD_FCHA_MRA;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error Insertando en RCBOS_CHQUES ' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+        NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en RCBOS_CHQUES ' ||SQLERRM  ;
+        RETURN;
+    END;
+
+  END LOOP;
+  CLOSE C_RCBOS_CHQUES;
+
+  OPEN C_RGSTRO_PDRES;
+  LOOP
+    FETCH C_RGSTRO_PDRES INTO R_RGSTRO_PDRES;
+    IF C_RGSTRO_PDRES%NOTFOUND THEN
+      EXIT;
+    END IF;
+
+    BEGIN
+      INSERT INTO RGSTRO_PDRES
+        SELECT ACTUAL,
+               RGP_NMRO_SLCTUD,
+               FECHA_MORA_N,
+               RGP_NMRO_ORDEN,
+               RGP_FCHA_ENVIO_PODER,
+               RGP_FCHA_RCPCION_PODER ,
+               RGP_OBSRVCNES,
+               RGP_RCBDO,
+               RGP_USRIO ,
+               RGP_FCHA_MDFCCION,
+               RGP_RAM_CDGO,
+               RGP_CMRA_CMRCIO ,
+               RGP_FCHA_CMRA_CMRCIO,
+               RGP_SGNDA_CPIA,
+               RGP_FCHA_SGNDA_CPIA ,
+               RGP_LNDROS ,
+               RGP_FCHA_LNDROS,
+               RGP_CSION ,
+               RGP_FCHA_CSION ,
+               RGP_PRBA_NTFCCION,
+               RGP_FCHA_P_NTFCCION,
+               RPG_CMPLTO_DRCCION
+          FROM RGSTRO_PDRES
+         WHERE RGP_NMRO_SLCTUD = R_RGSTRO_PDRES.RGP_NMRO_SLCTUD
+           AND RGP_FECHA_MRA   = R_RGSTRO_PDRES.RGP_FECHA_MRA;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error Insertando en RGSTRO_PDRES ' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+        NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en RGSTRO_PDRES ' ||SQLERRM  ;
+        RETURN;
+    END;
+
+  END LOOP;
+  CLOSE C_RGSTRO_PDRES;
+
+  OPEN C_RVRSNES;
+  LOOP
+    FETCH C_RVRSNES INTO R_RVRSNES;
+    IF C_RVRSNES%NOTFOUND THEN
+      EXIT;
+    END IF;
+
+    BEGIN
+      INSERT INTO RVRSNES_SNSTROS
+        SELECT RVS_NMRO_SLCTUD,
+               ACTUAL,
+               RVS_ESTDO_SNSTRO,
+               RVS_ESTDO_PGO,
+               FECHA_MORA_N,
+               RVS_CDGO_AMPRO,
+               RVS_PRDO ,
+               RVS_TPO_RVRSION,
+               RVS_USURIO,
+               RVS_FCHA_MDFCCION,
+               RVS_SCNCIA_ATRZCION
+          FROM RVRSNES_SNSTROS
+         WHERE RVS_NMRO_SLCTUD = R_RVRSNES.RVS_NMRO_SLCTUD
+           AND RVS_FCHA_MRA   = R_RVRSNES.RVS_FCHA_MRA;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error Insertando en RVRSNES_SNSTROS ' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+        NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en RVRSNES_SNSTROS ' ||SQLERRM  ;
+        RETURN;
+    END;
+
+  END LOOP;
+  CLOSE C_RVRSNES;
+
+
+  OPEN C_SNSTROS_NUEVOS;
+  LOOP
+    FETCH C_SNSTROS_NUEVOS INTO R_SNSTROS_NUEVOS;
+    IF C_SNSTROS_NUEVOS%NOTFOUND THEN
+      EXIT;
+    END IF;
+
+    BEGIN
+      INSERT INTO SNSTROS_NUEVOS
+        SELECT SNV_FCHA_PGO,
+               SNA_NMRO_PLZA,
+               SNV_NMRO_ITEM,
+               FECHA_MORA_N,
+               ACTUAL,
+               SNV_RAM_CDGO,
+               SNV_CDGO_AMPRO,
+               SNV_TIPO_SNSTRO,
+               SNV_USRIO_CREACION,
+               SNV_FCHA_CREACION
+          FROM SNSTROS_NUEVOS
+         WHERE SNV_NMRO_ITEM = R_SNSTROS_NUEVOS.SNV_NMRO_ITEM
+           AND SNV_FCHA_MRA   = R_SNSTROS_NUEVOS.SNV_FCHA_MRA;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error Insertando en SNSTROS_NUEVOS ' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+        NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en SNSTROS_NUEVOS ' ||SQLERRM  ;
+        RETURN;
+    END;
+
+  END LOOP;
+  CLOSE C_SNSTROS_NUEVOS;
+
+
+  OPEN C_SSPNSION_LMTE;
+  LOOP
+    FETCH C_SSPNSION_LMTE INTO R_SSPNSION_LMTE;
+    IF C_SSPNSION_LMTE%NOTFOUND THEN
+      EXIT;
+    END IF;
+
+    BEGIN
+      INSERT INTO SNSTROS_SUS_LIMITE
+        SELECT SSL_NMRO_ITEM,
+               FECHA_MORA_N,
+               SSL_NMRO_PLZA,
+               SSL_CLSE_PLZA ,
+               SSL_RAM_CDGO,
+               ACTUAL,
+               SSL_FCHA_PGO_SSPNSION,
+               SSL_PGOS_RLZDOS,
+               SSL_USRIO,
+               SSL_FCHA_MDFCCION
+          FROM SNSTROS_SUS_LIMITE
+         WHERE SSL_NMRO_ITEM = R_SSPNSION_LMTE.SSL_NMRO_ITEM
+           AND SSL_FCHA_MRA   = R_SSPNSION_LMTE.SSL_FCHA_MRA;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error Insertando en SNSTROS_SUS_LIMITE ' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+        NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en SNSTROS_SUS_LIMITE ' ||SQLERRM  ;
+        RETURN;
+    END;
+
+  END LOOP;
+  CLOSE C_SSPNSION_LMTE;
+
+  OPEN C_ORDNES_PGO;
+  LOOP
+    FETCH C_ORDNES_PGO INTO R_ORDNES_PGO;
+    IF C_ORDNES_PGO%NOTFOUND THEN
+      EXIT;
+    END IF;
+
+    BEGIN
+      INSERT INTO ORDNES_PGO
+        SELECT OPG_NMRO_SLCTUD,
+               OPG_TPO_LQDCION,
+               OPG_PRDO,
+               OPG_SERIE,
+               OPG_RAM_CDGO,
+               OPG_CDGO_AMPRO,
+               OPG_CNCPTO_VLOR,
+               OPG_FCHA_DSDE,
+               OPG_FCHA_HSTA,
+               ACTUAL,
+               OPG_ESTDO_SNSTRO,
+               OPG_ESTDO_PGO,
+               OPG_FCHA_ESTDO,
+               OPG_VLOR_CNSTTDO,
+               OPG_NMRO_PGOS,
+               OPG_USER,
+               OPG_FCHA_MDFCCION,
+               OPG_ESTDO_ORD_PGO,
+               OPG_OBSRVCNES
+            FROM ORDNES_PGO
+           WHERE OPG_NMRO_SLCTUD = R_ORDNES_PGO.OPG_NMRO_SLCTUD
+             AND OPG_NMRO_SNSTRO   = R_ORDNES_PGO.OPG_NMRO_SNSTRO;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error Insertando en ORDNES_PGO ' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+        NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en ORDNES_PGO ' ||SQLERRM  ;
+        RETURN;
+    END;
+
+  END LOOP;
+  CLOSE C_ORDNES_PGO;
+
+
+  OPEN C_CMNCCNES_CRTRA;
+  LOOP
+    FETCH C_CMNCCNES_CRTRA INTO R_CMNCCNES_CRTRA;
+    IF C_CMNCCNES_CRTRA%NOTFOUND THEN
+      EXIT;
+    END IF;
+
+    BEGIN
+      INSERT INTO CMNCCNES_REGISTRO_DATOS
+        SELECT CRD_SCNCIA,
+               CRD_NMRO_SLCTUD,
+               CRD_CDGO_ASUNTO,
+               CRD_CDGO_FIRMA,
+               CRD_FORMA_ENVIO,
+               CRD_FECHA_GENERA,
+               CRD_FECHA_ENVIO,
+               CRD_DIR_SCIA,
+               CRD_DIR_SCIATERC,
+               CRD_USUARIO_CREACION,
+               CRD_FECHA_CREACION,
+               FECHA_MORA_N,
+               CRD_USUARIO_MODIFICACION,
+               CRD_FECHA_MODIFICACION,
+               CRD_DIR_INMB
+          FROM CMNCCNES_REGISTRO_DATOS
+         WHERE CRD_NMRO_SLCTUD = R_CMNCCNES_CRTRA.CRD_NMRO_SLCTUD
+           AND CRD_FECHA_MORA   = R_CMNCCNES_CRTRA.CRD_FECHA_MORA;
+      IF SQL%NOTFOUND THEN
+        IF SQLCODE != 0000 THEN
+          MENSAJE := 'Error Insertando en CMNCCNES_REGISTRO_DATOS ' ||SQLERRM  ;
+          RETURN;
+        END IF;
+      END IF;
+    EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+        NULL;
+      WHEN OTHERS THEN
+        MENSAJE := 'Error1. Insertando en CMNCCNES_REGISTRO_DATOS ' ||SQLERRM  ;
+        RETURN;
+    END;
+
+  END LOOP;
+  CLOSE C_CMNCCNES_CRTRA;
+
+
+
+  OPEN RECIBOS;
+  LOOP
+    FETCH RECIBOS INTO RECIBO, CIA;
+    IF RECIBOS%NOTFOUND THEN
+      EXIT;
+    ELSE
+      BEGIN
+        INSERT INTO DTLLES_RCBOS_CJA
+          SELECT RPAD(TO_CHAR(SOLICITUD), 10, ' ') ||
+                 TO_CHAR(FECHA_MORA_N, 'DD/MM/YYYY') ||
+                 RPAD(TO_CHAR(POLIZA), 10, ' '),
+                 DRC_NMRO_RCBO,
+                 DRC_CDGO_CIA,
+                 DRC_TPO_RCBO,
+                 DRC_ORGEN_RCDO,
+                 DRC_TPO_RFRNCIA,
+                 DRC_CDGO_RCDO,
+                 DRC_VLOR_PGDO,
+                 DRC_USRIO,
+                 DRC_FCHA_MDFCCION
+            FROM DTLLES_RCBOS_CJA
+           WHERE DRC_NMRO_RCBO = RECIBO
+             AND DRC_CDGO_CIA = CIA
+             AND DRC_TPO_RCBO IN ('R', 'N')
+             AND TO_DATE(SUBSTR(DRC_RFRNCIA,11,10),'DD/MM/YYYY') = FECHA_MORA_V;
+        IF SQL%NOTFOUND THEN
+          IF SQLCODE != 0000 THEN
+            MENSAJE := 'Error Insertando en DTLLES_RCBOS_CJA' ||SQLERRM  ;
+            RETURN;
+          END IF;
+        END IF;
+      EXCEPTION
+        WHEN DUP_VAL_ON_INDEX THEN
+          NULL;
+        WHEN OTHERS THEN
+          MENSAJE := 'Error1. Insertando en DTLLES_RCBOS_CJA' ||SQLERRM  ;
+          RETURN;
+      END;
+
+      BEGIN
+        INSERT INTO CNCPTOS_DTLLE_RCBOS
+          SELECT RPAD(TO_CHAR(SOLICITUD), 10, ' ') ||
+                 TO_CHAR(FECHA_MORA_N, 'DD/MM/YYYY') ||
+                 RPAD(TO_CHAR(POLIZA), 10, ' '),
+                 CDR_NMRO_RCBO,
+                 CDR_CDGO_CIA,
+                 CDR_TPO_RCBO,
+                 CDR_ORGEN_RCDO,
+                 CDR_CDGO_RCDO,
+                 CDR_CDGO_CNCPTO,
+                 CDR_TPO_RCDO,
+                 CDR_VLOR,
+                 CDR_USRIO,
+                 CDR_FCHA_MDFCCION,
+                 NULL,
+                 NULL
+            FROM CNCPTOS_DTLLE_RCBOS
+           WHERE CDR_NMRO_RCBO = RECIBO
+             AND CDR_CDGO_CIA = CIA
+             AND CDR_TPO_RCBO IN ('R', 'N')
+             AND TO_DATE(SUBSTR(CDR_RFRNCIA,11,10),'DD/MM/YYYY') = FECHA_MORA_V;
+        IF SQL%NOTFOUND THEN
+          IF SQLCODE != 0000 THEN
+            MENSAJE := 'Error Insertando en CNCPTOS_DTLLE_RCBOS' ||SQLERRM  ;
+            RETURN;
+          END IF;
+        END IF;
+      EXCEPTION
+        WHEN DUP_VAL_ON_INDEX THEN
+          NULL;
+        WHEN OTHERS THEN
+          MENSAJE := 'Error1. Insertando en CNCPTOS_DTLLE_RCBOS' ||SQLERRM  ;
+          RETURN;
+      END;
+
+      BEGIN
+        DELETE CNCPTOS_DTLLE_RCBOS
+         WHERE CDR_NMRO_RCBO = RECIBO
+           AND CDR_CDGO_CIA = CIA
+           AND CDR_TPO_RCBO IN ('R', 'N')
+           AND SUBSTR(CDR_RFRNCIA, 1, 10) =
+               RPAD(TO_CHAR(SOLICITUD), 10, ' ')
+           AND SUBSTR(CDR_RFRNCIA, 11, 10) =
+               TO_CHAR(FECHA_MORA_V, 'DD/MM/YYYY');
+      EXCEPTION
+        WHEN OTHERS THEN
+          MENSAJE := 'Error1. Borrando en CNCPTOS_DTLLE_RCBOS' ||SQLERRM  ;
+          RETURN;
+      END;
+
+      BEGIN
+        DELETE DTLLES_RCBOS_CJA
+         WHERE DRC_NMRO_RCBO = RECIBO
+           AND DRC_CDGO_CIA = CIA
+           AND DRC_TPO_RCBO IN ('R', 'N')
+           AND SUBSTR(DRC_RFRNCIA, 1, 10) =
+               RPAD(TO_CHAR(SOLICITUD), 10, ' ')
+           AND SUBSTR(DRC_RFRNCIA, 11, 10) =
+               TO_CHAR(FECHA_MORA_V, 'DD/MM/YYYY');
+      EXCEPTION
+        WHEN OTHERS THEN
+          MENSAJE := 'Error1. Borrando en DTLLES_RCBOS_CJA' ||SQLERRM  ;
+          RETURN;
+      END;
+    END IF;
+  END LOOP;
+  CLOSE RECIBOS;
+
+  BEGIN
+    UPDATE AVSOS_SNSTROS
+       SET SNA_ESTDO_SNSTRO = '06',
+           SNA_ESTDO_PGO = '02'
+     WHERE SNA_NMRO_ITEM = SOLICITUD
+       AND SNA_FCHA_SNSTRO = FECHA_MORA_V;
+  EXCEPTION
+    WHEN OTHERS THEN
+      MENSAJE := 'Error. Actualizando en AVSOS_SNSTROS' ||SQLERRM  ;
+      RETURN;
+  END;
+
+  BEGIN
+    UPDATE DDAS_VGNTES_ARRNDMNTOS
+       SET DVA_ESTDO = '02'
+     WHERE DVA_NMRO_SLCTUD = SOLICITUD
+       AND DVA_FCHA_MRA = FECHA_MORA_V;
+  EXCEPTION
+    WHEN OTHERS THEN
+      MENSAJE := 'Error. Actualizando en DDAS_VGNTES_ARRNDMNTOS' ||SQLERRM  ;
+      RETURN;
+  END;
+
+  BEGIN
+    SELECT POL_SUC_CDGO
+      INTO V_SUCURSAL
+      FROM PLZAS
+     WHERE POL_NMRO_PLZA = POLIZA;
+  EXCEPTION
+    WHEN OTHERS THEN
+      V_SUCURSAL := NULL;
+  END;
+
+  IF PKG_DEUDAS_CLIENTES.SUCURSAL_MIGRADA(V_SUCURSAL) = 'S' THEN
+    -- SE ACTUALIZA LA FECHA DE MORA Y EL NUMERO DEL SINIESTRO EN DEUDAS_CLIENTES EN EL TRIGGER
+    -- DE LA TABLA DE AMPROS_SNSTROS, NO SE MODIFICA NINGUNA OTRA TABLA EN EL MODULO JURIDICO GGM. 25/07/2013
+    NULL;
+  ELSE
+    -- Parte Jurídica
+    OPEN C_PRCSOS_JDCLES;
+    LOOP
+      FETCH C_PRCSOS_JDCLES INTO R_PRCSOS_JDCLES;
+      IF C_PRCSOS_JDCLES%NOTFOUND THEN
+        EXIT;
+      END IF;
+
+      BEGIN
+        INSERT INTO PRCSOS_JDCLES
+          VALUES(ACTUAL,R_PRCSOS_JDCLES.PRJ_TPO_PRCSO,
+                 R_PRCSOS_JDCLES.PRJ_NMRO_SLCTUD,
+                 FECHA_MORA_N,
+                 R_PRCSOS_JDCLES.PRJ_CDGO_ABGDO,
+                 R_PRCSOS_JDCLES.PRJ_CDGO_JZGDO,
+                 R_PRCSOS_JDCLES.PRJ_TPO_JZGDO,
+                 R_PRCSOS_JDCLES.PRJ_FCHA_DMNDA,
+                 R_PRCSOS_JDCLES.PRJ_VLOR_DMNDA,
+                 R_PRCSOS_JDCLES.PRJ_ESTDO_PRCSO,
+                 R_PRCSOS_JDCLES.PRJ_PODER_SN,
+                 R_PRCSOS_JDCLES.PRJ_FCHA_ENVIO_PODER,
+                 R_PRCSOS_JDCLES.PRJ_FCHA_RCPCION_PODER,
+                 R_PRCSOS_JDCLES.PRJ_DMNDA_IMPRSA_SN,
+                 USER,
+                 SYSDATE,
+                 R_PRCSOS_JDCLES.PRJ_FCHA_INCCION_PRCSO,
+                 R_PRCSOS_JDCLES.PRJ_DIV_CDGO,
+                 R_PRCSOS_JDCLES.PRJ_FCHA_RPRTO);
+      EXCEPTION
+        WHEN OTHERS THEN
+          MENSAJE := 'Error insertando en procesos judiciales..'||SQLERRM ;
+          RETURN;
+      END;
+
+    END LOOP;
+    CLOSE C_PRCSOS_JDCLES;
+
+    OPEN C_MVMNTOS_PRCSOS;
+    LOOP
+      FETCH C_MVMNTOS_PRCSOS INTO R_MVMNTOS_PRCSOS;
+      IF C_MVMNTOS_PRCSOS%NOTFOUND THEN
+        EXIT;
+      END IF;
+
+      BEGIN
+        INSERT INTO MVMNTOS_PRCSOS
+          VALUES(R_MVMNTOS_PRCSOS.MVP_SCNCIA,
+                 R_MVMNTOS_PRCSOS.MVP_CDGO_ACTCION,
+                 R_MVMNTOS_PRCSOS.MVP_TPO_PRCSO,
+                 ACTUAL,
+                 R_MVMNTOS_PRCSOS.MVP_NMRO_SLCTUD,
+                 FECHA_MORA_N,
+                 R_MVMNTOS_PRCSOS.MVP_RLZDO_SN,
+                 R_MVMNTOS_PRCSOS.MVP_FCHA_INCIO,
+                 R_MVMNTOS_PRCSOS.MVP_FCHA_TRMTE,
+                 USER,SYSDATE,
+                 R_MVMNTOS_PRCSOS.MVP_VLOR_ACTCION,
+                 R_MVMNTOS_PRCSOS.MVP_TPO_IDNTFCCION,
+                 R_MVMNTOS_PRCSOS.MVP_NMRO_IDNTFCCION,
+                 R_MVMNTOS_PRCSOS.MVP_NMRO_RDCCION);
+      EXCEPTION
+        WHEN OTHERS THEN
+          MENSAJE := 'Error insertando en movimientos procesos..'||SQLERRM ;
+          RETURN;
+      END;
+
+    END LOOP;
+    CLOSE C_MVMNTOS_PRCSOS;
+
+    OPEN C_DTLLES_MVMNTO_PRCSOS;
+    LOOP
+      FETCH C_DTLLES_MVMNTO_PRCSOS INTO R_DTLLES_MVMNTO_PRCSOS;
+      IF C_DTLLES_MVMNTO_PRCSOS%NOTFOUND THEN
+        EXIT;
+      END IF;
+
+      BEGIN
+        UPDATE DTLLES_MVMNTO_PRCSOS
+           SET DMP_CNSCTVO_PRCSO = ACTUAL,
+               DMP_FCHA_MRA     = FECHA_MORA_N
+         WHERE DMP_NMRO_SLCTUD = R_DTLLES_MVMNTO_PRCSOS.DMP_NMRO_SLCTUD
+           AND DMP_FCHA_MRA = R_DTLLES_MVMNTO_PRCSOS.DMP_FCHA_MRA;
+      EXCEPTION
+        WHEN OTHERS THEN
+          MENSAJE := 'Error actualizando en detalles movimiento procesos..'||SQLERRM ;
+          RETURN;
+      END;
+
+    END LOOP;
+    CLOSE C_DTLLES_MVMNTO_PRCSOS;
+
+    OPEN C_HSTRIA_UBCCNES;
+    LOOP
+      FETCH C_HSTRIA_UBCCNES INTO R_HSTRIA_UBCCNES;
+      IF C_HSTRIA_UBCCNES%NOTFOUND THEN
+        EXIT;
+      END IF;
+
+      BEGIN
+        UPDATE HSTRIA_UBCCNES
+           SET HUB_CNSCTVO_PRCSO = ACTUAL,
+               HUB_FECHA_MRA     = FECHA_MORA_N
+         WHERE HUB_NMRO_SLCTUD = R_HSTRIA_UBCCNES.HUB_NMRO_SLCTUD
+           AND HUB_FECHA_MRA = R_HSTRIA_UBCCNES.HUB_FECHA_MRA;
+      EXCEPTION
+        WHEN OTHERS THEN
+          MENSAJE := 'Error actualizando en Historia Ubicaciones..'||SQLERRM ;
+          RETURN;
+      END;
+
+    END LOOP;
+    CLOSE C_HSTRIA_UBCCNES;
+
+    OPEN C_HSTRIA_ABGDOS;
+    LOOP
+      FETCH C_HSTRIA_ABGDOS INTO R_HSTRIA_ABGDOS;
+      IF C_HSTRIA_ABGDOS%NOTFOUND THEN
+        EXIT;
+      END IF;
+
+      BEGIN
+        UPDATE HSTRIA_ABGDOS
+           SET HAB_CNSCTVO_PRCSO = ACTUAL,
+               HAB_FCHA_MRA      = FECHA_MORA_N
+         WHERE HAB_NMRO_SLCTUD = R_HSTRIA_ABGDOS.HAB_NMRO_SLCTUD
+           AND HAB_FCHA_MRA = R_HSTRIA_ABGDOS.HAB_FCHA_MRA;
+      EXCEPTION
+        WHEN OTHERS THEN
+          MENSAJE := 'Error actualizando en Historia Abogados..'||SQLERRM ;
+          RETURN;
+      END;
+
+    END LOOP;
+    CLOSE C_HSTRIA_ABGDOS;
+
+    OPEN C_HSTRIA_JZGDOS;
+    LOOP
+      FETCH C_HSTRIA_JZGDOS INTO R_HSTRIA_JZGDOS;
+      IF C_HSTRIA_JZGDOS%NOTFOUND THEN
+        EXIT;
+      END IF;
+
+      BEGIN
+        UPDATE HSTRIA_JZGDOS
+           SET HJZ_CNSCTVO_PRCSO = ACTUAL,
+               HJZ_FCHA_MRA      = FECHA_MORA_N
+         WHERE HJZ_NMRO_SLCTUD = R_HSTRIA_JZGDOS.HJZ_NMRO_SLCTUD
+           AND HJZ_FCHA_MRA = R_HSTRIA_JZGDOS.HJZ_FCHA_MRA;
+      EXCEPTION
+        WHEN OTHERS THEN
+          MENSAJE := 'Error actualizando en Historia Juzgados..'||SQLERRM ;
+          RETURN;
+      END;
+
+    END LOOP;
+    CLOSE C_HSTRIA_JZGDOS;
+
+    OPEN C_DMNDDOS;
+    LOOP
+      FETCH C_DMNDDOS INTO R_DMNDDOS;
+      IF C_DMNDDOS%NOTFOUND THEN
+        EXIT;
+      END IF;
+
+      BEGIN
+        UPDATE DMNDDOS
+           SET DMD_CNSCTVO_PRCSO = ACTUAL,
+               DMD_FCHA_MRA      = FECHA_MORA_N
+         WHERE DMD_NMRO_SLCTUD = R_DMNDDOS.DMD_NMRO_SLCTUD
+           AND DMD_FCHA_MRA = R_DMNDDOS.DMD_FCHA_MRA;
+      EXCEPTION
+        WHEN OTHERS THEN
+          MENSAJE := 'Error actualizando en Demandados..'||SQLERRM ;
+          RETURN;
+      END;
+
+    END LOOP;
+    CLOSE C_DMNDDOS;
+
+    OPEN C_TTLOS;
+    LOOP
+      FETCH C_TTLOS INTO R_TTLOS;
+      IF C_TTLOS%NOTFOUND THEN
+        EXIT;
+      END IF;
+
+      BEGIN
+        INSERT INTO TITULOS_JDCLES
+          SELECT TTJ_NMRO_SLCTUD,
+                 FECHA_MORA_N,
+                 TTJ_SCNCIA,
+                 ACTUAL,
+                 TTL_RAM_CDGO,
+                 TTJ_FCHA_TTLO,
+                 TTJ_VLOR_TTLO,
+                 TTJ_ESTDO,
+                 TTJ_OBSRVCNES,
+                 TTJ_USRIO,
+                 TTJ_FCHA_MDFCCION
+            FROM TITULOS_JDCLES
+           WHERE TTJ_NMRO_SLCTUD = R_TTLOS.TTJ_NMRO_SLCTUD
+             AND TTJ_FCHA_MRA   = R_TTLOS.TTJ_FCHA_MRA;
+        IF SQL%NOTFOUND THEN
+          IF SQLCODE != 0000 THEN
+            MENSAJE := 'Error Insertando en TITULOS_JDCLES ' ||SQLERRM  ;
+            RETURN;
+          END IF;
+        END IF;
+      EXCEPTION
+        WHEN DUP_VAL_ON_INDEX THEN
+          NULL;
+        WHEN OTHERS THEN
+          MENSAJE := 'Error1. Insertando en TITULOS_JDCLES ' ||SQLERRM  ;
+          RETURN;
+      END;
+
+    END LOOP;
+    CLOSE C_TTLOS;
+
+
+    OPEN C_PGOS;
+    LOOP
+      FETCH C_PGOS  INTO R_PGOS;
+      IF C_PGOS%NOTFOUND THEN
+        EXIT;
+      END IF;
+
+      BEGIN
+        UPDATE PGOS_ABGDOS
+           SET PAB_CNSCTVO_PRCSO = ACTUAL,
+               PAB_FECHA_MRA      = FECHA_MORA_N
+         WHERE PAB_NMRO_SLCTUD = R_PGOS.PAB_NMRO_SLCTUD
+           AND PAB_FECHA_MRA = R_PGOS.PAB_FECHA_MRA;
+      EXCEPTION
+        WHEN OTHERS THEN
+          MENSAJE := 'Error actualizando en Pagos Abogados..'||SQLERRM ;
+          RETURN;
+      END;
+
+    END LOOP;
+    CLOSE C_PGOS;
+
+    BEGIN
+      DELETE MVMNTOS_PRCSOS
+         WHERE MVP_NMRO_SLCTUD = SOLICITUD
+           AND MVP_FECHA_MRA = FECHA_MORA_V;
+    EXCEPTION
+      WHEN OTHERS THEN
+        MENSAJE := 'Error borrando en movimientos procesos fecha anterior..'||SQLERRM ;
+        RETURN;
+    END;
+
+    BEGIN
+      DELETE PRCSOS_JDCLES
+       WHERE PRJ_NMRO_SLCTUD = SOLICITUD
+         AND PRJ_FECHA_MRA = FECHA_MORA_V;
+    EXCEPTION
+      WHEN OTHERS THEN
+        MENSAJE := 'Error borrando en procesos judiciales fecha anterior..'||SQLERRM ;
+        RETURN;
+    END;
+
+  END IF;
+
+END REPLICAR_SINIESTRO;
+/

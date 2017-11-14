@@ -1,0 +1,1143 @@
+CREATE OR REPLACE PACKAGE BODY ADMSISA.PKG_CONSULTA_INDEMNIZACION IS
+
+
+
+ FUNCTION  FUN_INQUILINO_SINIESTRO(P_SOLICITUD    IN AVSOS_SNSTROS.SNA_NMRO_ITEM%TYPE,
+                                   P_FECHA_MORA   IN AVSOS_SNSTROS.SNA_FCHA_SNSTRO%TYPE) RETURN NUMBER IS
+
+  V_INQUILINO                      DDAS_ARRNDTRIOS.DAR_NMRO_IDNTFCCION%TYPE;
+
+
+ BEGIN
+
+    BEGIN
+        SELECT D.DAR_NMRO_IDNTFCCION
+          INTO V_INQUILINO
+          FROM DDAS_ARRNDTRIOS D
+         WHERE D.DAR_NMRO_SLCTUD   = P_SOLICITUD
+           AND D.DAR_FCHA_MRA      = P_FECHA_MORA
+           AND D.DAR_TPO_ARRNDTRIO = 'P';
+    EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+        BEGIN
+          SELECT D.DAR_NMRO_IDNTFCCION
+            INTO V_INQUILINO
+            FROM DDAS_ARRNDTRIOS D
+           WHERE D.DAR_NMRO_SLCTUD   = P_SOLICITUD
+             AND D.DAR_FCHA_MRA      = P_FECHA_MORA
+             AND D.DAR_TPO_ARRNDTRIO = 'I';
+        EXCEPTION
+          WHEN NO_DATA_FOUND THEN
+             V_INQUILINO := NULL;
+        END;
+      WHEN OTHERS THEN
+         V_INQUILINO := NULL;
+   END;
+
+   RETURN(V_INQUILINO);
+
+ END;
+
+
+ FUNCTION  FUN_TIPO_INQUILINO(P_SOLICITUD    IN AVSOS_SNSTROS.SNA_NMRO_ITEM%TYPE,
+                                   P_FECHA_MORA   IN AVSOS_SNSTROS.SNA_FCHA_SNSTRO%TYPE) RETURN VARCHAR2 IS
+
+  V_INQUILINO                      DDAS_ARRNDTRIOS.DAR_TPO_ARRNDTRIO%TYPE;
+
+
+ BEGIN
+
+    BEGIN
+        SELECT D.DAR_TPO_ARRNDTRIO
+          INTO V_INQUILINO
+          FROM DDAS_ARRNDTRIOS D
+         WHERE D.DAR_NMRO_SLCTUD   = P_SOLICITUD
+           AND D.DAR_FCHA_MRA      = P_FECHA_MORA
+           AND D.DAR_TPO_ARRNDTRIO = 'P';
+    EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+        BEGIN
+          SELECT D.DAR_TPO_ARRNDTRIO
+            INTO V_INQUILINO
+            FROM DDAS_ARRNDTRIOS D
+           WHERE D.DAR_NMRO_SLCTUD   = P_SOLICITUD
+             AND D.DAR_FCHA_MRA      = P_FECHA_MORA
+             AND D.DAR_TPO_ARRNDTRIO = 'I';
+        EXCEPTION
+          WHEN NO_DATA_FOUND THEN
+             V_INQUILINO := NULL;
+        END;
+      WHEN OTHERS THEN
+         V_INQUILINO := NULL;
+   END;
+
+   RETURN(V_INQUILINO);
+
+ END;
+
+
+
+ FUNCTION  FUN_TIPO_INQUILINO2(P_SOLICITUD    IN AVSOS_SNSTROS.SNA_NMRO_ITEM%TYPE,
+                              P_FECHA_MORA   IN AVSOS_SNSTROS.SNA_FCHA_SNSTRO%TYPE,
+                              P_IDENTIFICACION IN DDAS_ARRNDTRIOS.DAR_NMRO_IDNTFCCION%TYPE) RETURN VARCHAR2 IS
+
+  V_INQUILINO                      DDAS_ARRNDTRIOS.DAR_TPO_ARRNDTRIO%TYPE;
+
+
+ BEGIN
+
+    BEGIN
+        SELECT D.DAR_TPO_ARRNDTRIO
+          INTO V_INQUILINO
+          FROM DDAS_ARRNDTRIOS D
+         WHERE D.DAR_NMRO_SLCTUD   = P_SOLICITUD
+           AND D.DAR_FCHA_MRA      = P_FECHA_MORA
+           AND D.DAR_NMRO_IDNTFCCION = P_IDENTIFICACION
+           AND D.DAR_TPO_ARRNDTRIO IN ('P','I','C');
+    EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+         V_INQUILINO := NULL;
+      WHEN OTHERS THEN
+         V_INQUILINO := NULL;
+   END;
+
+   RETURN(V_INQUILINO);
+
+ END;
+
+ FUNCTION  FUN_ESTADO_SINIESTRO(P_ESTADO IN VARCHAR2) RETURN VARCHAR2 IS
+
+  V_DESCRIPCION                          CG_REF_CODES.RV_MEANING%TYPE;
+
+
+ BEGIN
+
+    BEGIN
+        SELECT RV_MEANING
+          INTO V_DESCRIPCION
+          FROM CG_REF_CODES
+         WHERE RV_LOW_VALUE  =  P_ESTADO
+           AND RV_DOMAIN     = 'ESTADO_SINIESTRO';
+    EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+           V_DESCRIPCION := NULL;
+      WHEN OTHERS THEN
+         V_DESCRIPCION := NULL;
+    END;
+
+    RETURN(V_DESCRIPCION);
+
+ END;
+
+ FUNCTION  FUN_ESTADO_PAGO(P_ESTADO IN VARCHAR2) RETURN VARCHAR2 IS
+
+  V_DESCRIPCION                          CG_REF_CODES.RV_MEANING%TYPE;
+
+
+ BEGIN
+    BEGIN
+        SELECT RV_MEANING
+          INTO V_DESCRIPCION
+          FROM CG_REF_CODES
+         WHERE RV_LOW_VALUE  =  P_ESTADO
+           AND RV_DOMAIN     = 'ESTADO_SINIESPAGO';
+    EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+         V_DESCRIPCION := NULL;
+      WHEN OTHERS THEN
+         V_DESCRIPCION := NULL;
+    END;
+
+    RETURN(V_DESCRIPCION);
+
+ END;
+
+ FUNCTION  FUN_TIPO_ARRENDATARIO(P_TIPO IN VARCHAR2) RETURN VARCHAR2 IS
+
+  V_DESCRIPCION                          CG_REF_CODES.RV_MEANING%TYPE;
+
+
+ BEGIN
+
+    BEGIN
+        SELECT RV_MEANING
+          INTO V_DESCRIPCION
+          FROM CG_REF_CODES
+         WHERE RV_LOW_VALUE  =  P_TIPO
+           AND RV_DOMAIN     = 'TIPO_ARRENDATARIO';
+    EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+         V_DESCRIPCION  := NULL;
+      WHEN OTHERS THEN
+         V_DESCRIPCION  := NULL;
+    END;
+
+    RETURN(V_DESCRIPCION);
+
+ END;
+
+ FUNCTION FUN_CANON_SINIESTRO(P_SINIESTRO       IN AVSOS_SNSTROS.SNA_NMRO_SNSTRO%TYPE,
+                              P_RAMO            IN AVSOS_SNSTROS.SNA_RAM_CDGO%TYPE,
+                              P_SOLICITUD       IN AVSOS_SNSTROS.SNA_NMRO_ITEM%TYPE,
+                              P_FECHA_SINIESTRO IN AVSOS_SNSTROS.SNA_FCHA_SNSTRO%TYPE,
+                              P_POLIZA          IN AVSOS_SNSTROS.SNA_NMRO_PLZA%TYPE,
+                              P_CLASE           IN AVSOS_SNSTROS.SNA_CLSE_PLZA%TYPE) RETURN NUMBER IS
+
+   V_CANON                    NUMBER;
+
+ BEGIN
+
+    BEGIN
+
+      SELECT NVL(sum(amn_vlor),0)
+        into V_CANON
+        FROM amntos_snstros
+       WHERE amn_nmro_snstro = P_SINIESTRO
+         and amn_ram_cdgo    = P_RAMO
+         AND amn_cdgo_ampro  = '01'
+         and amn_cncpto      = '01'
+         and amn_slctud      = P_SOLICITUD
+         and amn_fcha_mra    = P_FECHA_SINIESTRO;
+
+    exception
+       when no_data_found  then
+          begin
+              Select rvv.rvv_vlor
+               into V_CANON
+               from Rsgos_Vgntes_Vlres   rvv
+              where rvv.rvv_nmro_item   = P_SOLICITUD
+                and rvv.rvv_nmro_plza   = P_POLIZA
+                and rvv.rvv_clse_plza   = P_CLASE
+                and rvv.rvv_ram_cdgo    = P_RAMO
+                and rvv.rvv_cncpto_vlor = '01';
+          exception
+            when others  then
+                 V_CANON  := 0;
+          end;
+       when others  then
+          V_CANON  := 0;
+       end;
+
+       RETURN(V_CANON);
+  END;
+
+
+  FUNCTION FUN_VALOR_AVISADO(P_SINIESTRO  NUMBER,
+                             P_AMPARO     VARCHAR2) RETURN NUMBER IS
+
+  V_VALOR  NUMBER;
+
+
+  BEGIN
+    SELECT SUM(VSN_VLOR_AVSDO)
+      INTO V_VALOR
+      FROM VLRES_SNSTROS
+     WHERE VSN_CDGO_AMPRO = P_AMPARO
+       AND VSN_NMRO_SNSTRO = P_SINIESTRO
+       AND EXISTS (SELECT * FROM VLRES_PRDCTO V
+                    WHERE V.VPR_CDGO = VSN_CNCPTO_VLOR
+                      AND V.VPR_ESTDO_CNTA = 'S');
+
+    RETURN(NVL(V_VALOR,0));
+
+  END FUN_VALOR_AVISADO;
+
+  --
+  --
+  --
+  FUNCTION FUN_VALOR_CONSTITUIDO(P_SINIESTRO  NUMBER,
+                                 P_AMPARO     VARCHAR2) RETURN NUMBER IS
+
+  V_VALOR  NUMBER;
+
+
+  BEGIN
+    SELECT SUM(VSN_VLOR_CNSTTDO)
+      INTO V_VALOR
+      FROM VLRES_SNSTROS
+     WHERE VSN_CDGO_AMPRO = P_AMPARO
+       AND VSN_NMRO_SNSTRO = P_SINIESTRO
+       AND EXISTS (SELECT * FROM VLRES_PRDCTO V
+                    WHERE V.VPR_CDGO = VSN_CNCPTO_VLOR
+                      AND V.VPR_ESTDO_CNTA = 'S');
+
+    RETURN(NVL(V_VALOR,0));
+
+  END FUN_VALOR_CONSTITUIDO;
+
+
+ FUNCTION FUN_VERIFICA_COLABORACION(P_SOLICITUD AVSOS_SNSTROS.SNA_NMRO_ITEM%TYPE,
+                                    P_FECHA_MORA AVSOS_SNSTROS.SNA_FCHA_SNSTRO%TYPE) RETURN VARCHAR2 IS
+
+    V_SINIESTROS	NUMBER;
+    V_TIPO        VARCHAR2(100);
+
+ BEGIN
+
+     SELECT COUNT(VLD_CNCPTO_VLOR)
+       INTO V_SINIESTROS
+       FROM VLRES_DDAS, VLRES_PRDCTO
+      WHERE VLD_NMRO_SLCTUD = P_SOLICITUD
+        AND VLD_FCHA_MRA    = P_FECHA_MORA
+        AND VPR_RAM_CDGO    = '12'
+        AND VPR_CDGO        = VLD_CNCPTO_VLOR
+        AND VPR_TPO_VLOR    = 'S';
+    IF NVL(V_SINIESTROS,0) = 0 THEN
+      V_TIPO := 'COLABORACION';
+    ELSE
+      V_TIPO := ' ';
+    END IF;
+
+    RETURN (V_TIPO);
+
+
+ END;
+
+ FUNCTION FUN_RECUPERACION_CANON(P_SINIESTRO       IN AVSOS_SNSTROS.SNA_NMRO_SNSTRO%TYPE,
+                                 P_RAMO            IN AVSOS_SNSTROS.SNA_RAM_CDGO%TYPE) RETURN NUMBER IS
+
+   V_REC_CANON                    NUMBER;
+
+ BEGIN
+
+  BEGIN
+
+    SELECT NVL(sum(vsn_vlor_cnsttdo),0)
+      into V_REC_CANON
+      FROM vlres_snstros
+     WHERE vsn_nmro_snstro = P_SINIESTRO
+       AND vsn_cncpto_vlor = 'RM01'
+       AND vsn_cdgo_ampro  = '01'
+       AND vsn_ram_cdgo    = P_RAMO
+       and vsn_lqdcion     = '02';
+   exception
+     when others  then
+          V_REC_CANON  := 0;
+   end;
+
+       RETURN(V_REC_CANON);
+  END;
+
+ FUNCTION FUN_CUOTA_SINIESTRO(P_SINIESTRO       IN AVSOS_SNSTROS.SNA_NMRO_SNSTRO%TYPE,
+                              P_RAMO            IN AVSOS_SNSTROS.SNA_RAM_CDGO%TYPE,
+                              P_SOLICITUD       IN AVSOS_SNSTROS.SNA_NMRO_ITEM%TYPE,
+                              P_FECHA_SINIESTRO IN AVSOS_SNSTROS.SNA_FCHA_SNSTRO%TYPE,
+                              P_POLIZA          IN AVSOS_SNSTROS.SNA_NMRO_PLZA%TYPE,
+                              P_CLASE           IN AVSOS_SNSTROS.SNA_CLSE_PLZA%TYPE) RETURN NUMBER IS
+
+   V_CUOTA                    NUMBER;
+
+ BEGIN
+
+    begin
+      SELECT NVL(sum(amn_vlor),0)
+        into V_CUOTA
+        FROM amntos_snstros
+       WHERE amn_nmro_snstro = P_SINIESTRO
+         and amn_ram_cdgo    = P_RAMO
+         AND amn_cdgo_ampro  = '01'
+         and amn_cncpto      = '02'
+         and amn_slctud      = P_SOLICITUD
+         and amn_fcha_mra    = P_FECHA_SINIESTRO;
+    exception
+       when no_data_found  then
+            begin
+              Select  NVL(rvv.rvv_vlor,0)
+                into V_CUOTA
+                from Rsgos_Vgntes_Vlres   rvv
+               where rvv.rvv_nmro_item   = P_SOLICITUD
+                 and rvv.rvv_nmro_plza   = P_POLIZA
+                 and rvv.rvv_clse_plza   = P_CLASE
+                 and rvv.rvv_ram_cdgo    = P_RAMO
+                 and rvv.rvv_cncpto_vlor = '02';
+            exception
+              when others  then
+                 V_CUOTA  := 0;
+            end;
+       when others  then
+            V_CUOTA  := 0;
+    end;
+
+       RETURN(V_CUOTA);
+  END;
+
+
+ FUNCTION FUN_RECUPERACION_CUOTA(P_SINIESTRO       IN AVSOS_SNSTROS.SNA_NMRO_SNSTRO%TYPE,
+                                 P_RAMO            IN AVSOS_SNSTROS.SNA_RAM_CDGO%TYPE) RETURN NUMBER IS
+
+   V_REC_CUOTA                    NUMBER;
+
+ BEGIN
+
+
+    begin
+      SELECT NVL(sum(vsn_vlor_cnsttdo),0)
+        into V_REC_CUOTA
+        FROM vlres_snstros
+       WHERE vsn_nmro_snstro = P_SINIESTRO
+         AND vsn_cncpto_vlor = 'RM02'
+         AND vsn_cdgo_ampro  = '01'
+         AND vsn_ram_cdgo    = P_RAMO
+         and vsn_lqdcion     = '02';
+    exception
+       when others  then
+          V_REC_CUOTA  := 0;
+    end;
+
+       RETURN(V_REC_CUOTA);
+  END;
+
+
+ FUNCTION FUN_FECHA_CONTRATO(P_SOLICITUD       IN AVSOS_SNSTROS.SNA_NMRO_ITEM%TYPE,
+                             P_RAMO            IN AVSOS_SNSTROS.SNA_RAM_CDGO%TYPE,
+                             P_CLASE           IN AVSOS_SNSTROS.SNA_CLSE_PLZA%TYPE,
+                             P_POLIZA          IN AVSOS_SNSTROS.SNA_NMRO_PLZA%TYPE)  RETURN DATE IS
+
+   V_CONTRATO                    DATE;
+
+ BEGIN
+
+   Begin
+     Select  rvc.RVC_FCHA_INCCION_CNTRTO
+        into V_CONTRATO
+        from rsgos_vgntes_cntrtos  rvc
+       where rvc.RVC_NMRO_ITEM  = P_SOLICITUD
+         and rvc.rvc_nmro_plza  = P_POLIZA
+         and rvc.rvc_clse_plza  = P_CLASE
+         and rvc.rvc_ram_cdgo   = P_RAMO;
+    Exception
+      when no_data_found Then
+           V_CONTRATO:= NULL;
+    End;
+
+       RETURN(V_CONTRATO);
+  END;
+
+
+
+ FUNCTION FUN_FECHA_DESOCUPACION(P_SINIESTRO       IN AVSOS_SNSTROS.SNA_NMRO_SNSTRO%TYPE,
+                                 P_RAMO            IN AVSOS_SNSTROS.SNA_RAM_CDGO%TYPE,
+                                 P_SOLICITUD       IN AVSOS_SNSTROS.SNA_NMRO_ITEM%TYPE,
+                                 P_FECHA_SINIESTRO IN AVSOS_SNSTROS.SNA_FCHA_SNSTRO%TYPE) RETURN DATE IS
+
+    V_FECHA_DESOCUPACION         DATE;
+
+ BEGIN
+
+     BEGIN
+       SELECT D.DSE_FCHA_DSCPCION
+         INTO V_FECHA_DESOCUPACION
+         FROM DSCPCNES_EFCTDAS D
+        WHERE D.DSE_NMRO_SNSTRO = P_SINIESTRO
+          AND D.DSE_RAM_CDGO    = P_RAMO;
+     EXCEPTION
+       WHEN NO_DATA_FOUND THEN
+         BEGIN
+           SELECT dva.DVA_FCHA_DSCPCION
+             INTO V_FECHA_DESOCUPACION
+             FROM DDAS_VGNTES_ARRNDMNTOS  dva
+            WHERE dva.DVA_NMRO_SLCTUD     = P_SOLICITUD
+              and dva.dva_fcha_mra        = P_FECHA_SINIESTRO;
+         EXCEPTION
+            WHEN NO_DATA_FOUND THEN
+               V_FECHA_DESOCUPACION := NULL;
+         END;
+     END;
+
+   RETURN(V_FECHA_DESOCUPACION);
+
+  END;
+
+ FUNCTION FUN_DESFASE_SINIESTRO(P_SOLICITUD       IN AVSOS_SNSTROS.SNA_NMRO_ITEM%TYPE,
+                                P_FECHA_SINIESTRO IN AVSOS_SNSTROS.SNA_FCHA_SNSTRO%TYPE) RETURN NUMBER IS
+
+    V_DESFASE                   NUMBER;
+
+ BEGIN
+
+   BEGIN
+       SELECT dva.DVA_VLOR_DSFSE
+         INTO V_DESFASE
+         FROM DDAS_VGNTES_ARRNDMNTOS  dva
+        WHERE dva.DVA_NMRO_SLCTUD     = P_SOLICITUD
+          and dva.dva_fcha_mra        = P_FECHA_SINIESTRO;
+   EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+        V_DESFASE := 0;
+   END ;
+
+   RETURN(V_DESFASE);
+
+
+ END;
+
+
+ FUNCTION FUN_PERIODO_DEUDA(P_SOLICITUD       IN AVSOS_SNSTROS.SNA_NMRO_ITEM%TYPE,
+                            P_SINIESTRO       IN AVSOS_SNSTROS.SNA_NMRO_SNSTRO%TYPE) RETURN VARCHAR2 IS
+
+   V_PERIODO_DEUDA          VARCHAR2(1000);
+   V_FECHA_D                DATE;
+   V_FECHA_H                DATE;
+
+
+ BEGIN
+
+  BEGIN
+    SELECT MIN(LQDCNES_DTLLE.LQT_FCHA_DSDE),
+           MAX(LQDCNES_DTLLE.LQT_FCHA_HSTA)
+      INTO V_FECHA_D,V_FECHA_H
+      FROM LQDCNES, LQDCNES_DTLLE, VLRES_LQDCION,VLRES_PRDCTO
+     WHERE LQDCNES_DTLLE.LQT_NMRO_SLCTUD = P_SOLICITUD
+       AND LQDCNES_DTLLE.LQT_NMRO_SNSTRO = P_SINIESTRO
+       AND (LQDCNES_DTLLE.LQT_ESTDO_LQDCION IN ('03'))
+       AND ((LQDCNES.LQD_NMRO_SLCTUD = LQDCNES_DTLLE.LQT_NMRO_SLCTUD)
+       AND (LQDCNES.LQD_TPO_LQDCION = LQDCNES_DTLLE.LQT_TPO_LQDCION)
+       AND (LQDCNES.LQD_PRDO = LQDCNES_DTLLE.LQT_PRDO)
+       AND (LQDCNES_DTLLE.LQT_NMRO_SLCTUD = VLRES_LQDCION.VLQ_NMRO_SLCTUD)
+       AND (LQDCNES_DTLLE.LQT_TPO_LQDCION = VLRES_LQDCION.VLQ_TPO_LQDCION)
+       AND (LQDCNES_DTLLE.LQT_PRDO = VLRES_LQDCION.VLQ_PRDO)
+       AND (LQDCNES_DTLLE.LQT_SERIE = VLRES_LQDCION.VLQ_SERIE)
+       AND (LQDCNES_DTLLE.LQT_RAM_CDGO = VLRES_LQDCION.VLQ_RAM_CDGO)
+       AND (VLRES_LQDCION.VLQ_CNCPTO_VLOR = VLRES_PRDCTO.VPR_CDGO)
+       AND (VLRES_PRDCTO.VPR_TPO_VLOR    = 'S'));
+
+       V_PERIODO_DEUDA := TO_CHAR(V_FECHA_D,'DD/MM/YYYY')||' a '||TO_CHAR(V_FECHA_H,'DD/MM/YYYY');
+
+  EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      V_PERIODO_DEUDA := NULL;
+  END;
+
+
+  RETURN(V_PERIODO_DEUDA);
+
+
+ END;
+
+
+ FUNCTION FUN_VALOR_SINIESTRO(P_SOLICITUD  NUMBER, P_FECHA_MORA DATE) RETURN NUMBER IS
+
+    V_VALOR_SINIESTRO                      NUMBER;
+
+ BEGIN
+
+     BEGIN
+       SELECT NVL(SUM(EST_VLOR_CIA),0)
+         INTO V_VALOR_SINIESTRO
+         FROM V_ABRESTDCUENTASTT
+        WHERE EST_SLCTUD = P_SOLICITUD
+          AND EST_FCHA_MRA = P_FECHA_MORA
+          AND EST_CRTRIO_CNSLTA = 'S'
+          AND EST_ESTADO LIKE 'PAGADO%';
+     EXCEPTION
+       WHEN NO_DATA_FOUND THEN
+          V_VALOR_SINIESTRO := 0;
+       WHEN OTHERS THEN
+          RAISE_APPLICATION_ERROR(-20501,'Error consultando la deuda de la solicitud.');
+     END;
+
+     RETURN(V_VALOR_SINIESTRO);
+
+ END;
+
+
+ FUNCTION FUN_VALOR_SINIESTRO(P_SOLICITUD  NUMBER,
+                              P_FECHA_MORA DATE,
+                              P_FECHA_PAGO DATE) RETURN NUMBER IS
+
+
+  V_VALOR_SINIESTRO                      NUMBER;
+
+ BEGIN
+
+     BEGIN
+       SELECT NVL(SUM(EST_VLOR_CIA),0)
+         INTO V_VALOR_SINIESTRO
+         FROM V_ABRESTDCUENTASTT
+        WHERE EST_SLCTUD = P_SOLICITUD
+          AND EST_FCHA_MRA = P_FECHA_MORA
+          AND EST_CRTRIO_CNSLTA = 'S'
+          AND EST_FCHA_MVTO = P_FECHA_PAGO
+          AND EST_ESTADO LIKE 'PAGADO%';
+     EXCEPTION
+       WHEN NO_DATA_FOUND THEN
+          V_VALOR_SINIESTRO := 0;
+       WHEN OTHERS THEN
+          RAISE_APPLICATION_ERROR(-20501,'Error consultando la deuda de la solicitud.');
+     END;
+
+     RETURN(V_VALOR_SINIESTRO);
+
+ END;
+
+ --
+ -- VALIDA QUE LA SUMA DE LOS VALORES CON TIPOS ('E', 'N', 'V', 'D')
+ -- ESTE ENTRE 5 Y -5
+ --
+ FUNCTION FUN_VALIDA_REINTEGROS(P_SINIESTRO  NUMBER,
+                                P_FECHA      DATE) RETURN VARCHAR2 IS
+
+ VALOR   NUMBER;
+
+ BEGIN
+   SELECT NVL(ROUND(SUM(l.lqt_nmro_dias * v.vlq_vlor),0),0)
+     INTO VALOR
+     FROM LQDCNES D, LQDCNES_DTLLE L, VLRES_LQDCION V
+    WHERE D.LQD_NMRO_SLCTUD = L.LQT_NMRO_SLCTUD
+      AND D.LQD_TPO_LQDCION = L.LQT_TPO_LQDCION
+      AND D.LQD_PRDO = L.LQT_PRDO
+      AND V.VLQ_NMRO_SLCTUD = L.LQT_NMRO_SLCTUD
+      AND V.VLQ_TPO_LQDCION = L.LQT_TPO_LQDCION
+      AND V.VLQ_PRDO = L.LQT_PRDO
+      AND V.VLQ_SERIE = L.LQT_SERIE
+      AND L.LQT_NMRO_SNSTRO = P_SINIESTRO
+      AND L.LQT_ESTDO_LQDCION != '02'
+      AND V.VLQ_ORGEN IN ('E', 'N', 'V', 'D')
+      AND TRUNC(D.LQD_FCHA_PGO) = P_FECHA;
+
+   IF NVL(VALOR,0) BETWEEN -5 AND 5 THEN
+     RETURN ('N');
+   ELSE
+     RETURN ('S');
+   END IF;
+
+ END FUN_VALIDA_REINTEGROS;
+
+ --
+ -- CONSULTAS PARA INGRESO DE SINIESTROS GGM. 2705/2015
+ --
+ FUNCTION FUN_EXISTE_SINIESTRO(P_SOLICITUD  NUMBER,
+                               P_FECHA      DATE) RETURN VARCHAR2 IS
+
+ EXISTE  NUMBER;
+
+ BEGIN
+   SELECT COUNT(8)
+     INTO EXISTE
+     FROM AVSOS_SNSTROS
+    WHERE SNA_NMRO_ITEM = P_SOLICITUD
+      AND SNA_FCHA_SNSTRO = P_FECHA;
+
+  IF NVL(EXISTE,0) > 0 THEN
+  	RETURN('S');
+  ELSE
+    RETURN('N');
+	END IF;
+
+ END FUN_EXISTE_SINIESTRO;
+
+ --
+ --
+ --
+ PROCEDURE PRC_DATOS_POLIZA(P_POLIZA  IN NUMBER,
+                            P_RAMO    OUT VARCHAR2,
+                            P_CLASE   OUT VARCHAR2,
+                            P_TIPO_ID OUT PLZAS.POL_PRS_TPO_IDNTFCCION%TYPE,
+                            P_NMRO_ID OUT PLZAS.POL_PRS_NMRO_IDNTFCCION%TYPE,
+                            P_TIPO    OUT PLZAS.POL_TPOPLZA%TYPE,
+                            P_ESTADO  OUT PLZAS.POL_ESTADO_PLZA%TYPE,
+                            P_NOMBRE  OUT VARCHAR2) IS
+
+ BEGIN
+   SELECT POL_TPOPLZA,
+          POL_ESTADO_PLZA,
+          POL_PRS_TPO_IDNTFCCION,
+          POL_PRS_NMRO_IDNTFCCION,
+          POL_RAM_CDGO,
+          POL_CDGO_CLSE,
+          PK_TERCEROS.F_NOMBRES(POL_PRS_NMRO_IDNTFCCION,POL_PRS_TPO_IDNTFCCION)
+     INTO P_TIPO,
+          P_ESTADO,
+          P_TIPO_ID,
+          P_NMRO_ID,
+          P_RAMO,
+          P_CLASE,
+          P_NOMBRE
+     FROM PLZAS
+    WHERE POL_NMRO_PLZA = P_POLIZA;
+ EXCEPTION
+   WHEN OTHERS THEN
+     RAISE_APPLICATION_ERROR(-20501,'Error consultando la póliza...'||SQLERRM);
+
+ END PRC_DATOS_POLIZA;
+
+ --
+ --
+ --
+ FUNCTION FUN_VALOR_ASEGURADO(P_SOLICITUD  NUMBER,
+                              P_AMPARO     VARCHAR2,
+                              P_CONCEPTO   VARCHAR2) RETURN NUMBER IS
+ VALOR  NUMBER;
+
+ BEGIN
+   BEGIN
+     SELECT RVL_VLOR
+       INTO VALOR
+       FROM RSGOS_VGNTES_AVLOR
+      WHERE RVL_NMRO_ITEM = P_SOLICITUD
+        AND RVL_CNCPTO_VLOR = P_CONCEPTO;
+   EXCEPTION
+     WHEN NO_DATA_FOUND THEN
+       BEGIN
+         SELECT RAV_VLOR
+           INTO VALOR
+          FROM RSGOS_RCBOS_AVLOR
+         WHERE RAV_CDGO_AMPRO = P_AMPARO
+           AND RAV_NMRO_ITEM = P_SOLICITUD
+           AND RAV_CNCPTO_VLOR = P_CONCEPTO
+           AND RAV_FCHA_MDFCCION =
+                 (SELECT MAX(RAV_FCHA_MDFCCION)
+                    FROM RSGOS_RCBOS_AVLOR
+                   WHERE RAV_CDGO_AMPRO = P_AMPARO
+                     AND RAV_NMRO_ITEM = P_SOLICITUD
+                     AND RAV_CNCPTO_VLOR = P_CONCEPTO);
+       EXCEPTION
+         WHEN OTHERS THEN
+           VALOR := 0;
+       END;
+   END;
+
+   RETURN(VALOR);
+
+ END FUN_VALOR_ASEGURADO;
+
+ --
+ --
+ --
+ FUNCTION FUN_TIPO_CONCEPTO(P_CONCEPTO VARCHAR2) RETURN VARCHAR2 IS
+
+ EXISTE    NUMBER;
+
+ BEGIN
+   SELECT COUNT(8)
+     INTO EXISTE
+     FROM VLRES_PRDCTO VP
+    WHERE VP.VPR_CDGO = P_CONCEPTO
+      AND VP.VPR_ESTDO_CNTA = 'S';
+   IF NVL(EXISTE,0) > 0 THEN
+     RETURN('S');
+   ELSE
+     RETURN('N');
+   END IF;
+
+
+ END FUN_TIPO_CONCEPTO;
+
+ --
+ --
+ --
+ FUNCTION FUN_CONCEPTO_RCPRCION(P_CONCEPTO  VARCHAR2) RETURN VARCHAR2 IS
+
+
+ V_CONCEPTO VLRES_PRDCTO.VPR_VLOR_RCPRCION%TYPE;
+
+ BEGIN
+   SELECT VPR_VLOR_RCPRCION
+     INTO V_CONCEPTO
+     FROM VLRES_PRDCTO
+    WHERE VPR_CDGO = P_CONCEPTO;
+   RETURN(V_CONCEPTO);
+ EXCEPTION
+   WHEN OTHERS THEN
+     RAISE_APPLICATION_ERROR(-20519,'Error consultando el concepto de recuperación..'||SQLERRM);
+
+ END FUN_CONCEPTO_RCPRCION;
+
+ --
+ --
+ --
+ FUNCTION FUN_CONSULTA_DOBLE_PAGO(P_SOLICITUD    NUMBER,
+                                  P_FECHA_MORA   DATE) RETURN VARCHAR2 IS
+
+ EXISTE  NUMBER;
+
+ BEGIN
+   SELECT COUNT(8)
+     INTO EXISTE
+     FROM LQDCNES_DTLLE,VLRES_LQDCION,VLRES_PRDCTO,AMPROS_SNSTROS
+    WHERE LQT_NMRO_SLCTUD = P_SOLICITUD
+      AND LQT_FCHA_MRA != P_FECHA_MORA
+      AND LQT_ESTDO_LQDCION = '03'
+      AND VLQ_NMRO_SLCTUD = LQT_NMRO_SLCTUD
+      AND VLQ_TPO_LQDCION = LQT_TPO_LQDCION
+      AND VLQ_PRDO = LQT_PRDO
+      AND VLQ_SERIE = LQT_SERIE
+      AND VLQ_CNCPTO_VLOR = VPR_CDGO
+      AND VPR_TPO_VLOR = 'S'
+      AND VLQ_ORGEN NOT IN ('N','E','V')
+      AND LQT_NMRO_SNSTRO = AMS_NMRO_SNSTRO
+      AND AMS_CDGO_AMPRO = '01'
+      AND AMS_RAM_CDGO = LQT_RAM_CDGO
+      AND P_FECHA_MORA BETWEEN LQT_FCHA_DSDE AND LQT_FCHA_HSTA;
+   IF NVL(EXISTE,0) > 0 THEN
+     RETURN('S');
+   ELSE
+     RETURN('N');
+   END IF;
+
+ END FUN_CONSULTA_DOBLE_PAGO;
+
+ --
+ --
+ --
+ FUNCTION FUN_CONSULTA_DOBLE_SNSTRO(P_SOLICITUD    NUMBER,
+                                    P_FECHA_MORA   DATE) RETURN VARCHAR2 IS
+
+ FECHA       DATE;
+ SINIESTRO  NUMBER;
+
+ BEGIN
+   FECHA := ADD_MONTHS(P_FECHA_MORA,-1);
+
+   BEGIN
+     SELECT COUNT(8)
+       INTO SINIESTRO
+       FROM AVSOS_SNSTROS
+      WHERE SNA_NMRO_ITEM = P_SOLICITUD
+        AND TRUNC(SNA_FCHA_SNSTRO) = TRUNC(FECHA)
+        AND SNA_ESTDO_SNSTRO NOT IN ('04','06')
+        AND EXISTS (SELECT * FROM VLRES_SNSTROS,VLRES_PRDCTO
+      	             WHERE VSN_NMRO_SNSTRO = SNA_NMRO_SNSTRO
+                 	     AND VSN_CDGO_AMPRO = '01'
+      	               AND VSN_CNCPTO_VLOR = VPR_CDGO
+                	     AND VPR_TPO_VLOR = 'S');
+     IF NVL(SINIESTRO,0) > 1 THEN
+       RETURN('S');
+     ELSE
+       RETURN('N');
+   	 END IF;
+   END;
+
+ END FUN_CONSULTA_DOBLE_SNSTRO;
+
+
+ --
+ -- RETORNA LA FECHA DESDE DONDE INICIA LA COBERTURA DE LA POLIZA INDIVIDUAL
+ --
+ FUNCTION FUN_VIGENCIA_POLIZA(P_POLIZA       IN NUMBER,
+                              P_FECHA_HASTA  OUT DATE,
+                              P_ESTADO       OUT VARCHAR2) RETURN DATE IS
+
+ FECHA_DESDE   DATE;
+
+ BEGIN
+   SELECT POL_FCHA_DSDE_INCIAL,POL_FCHA_HSTA_INCIAL,POL_ESTADO_PLZA
+     INTO FECHA_DESDE, P_FECHA_HASTA,P_ESTADO
+     FROM PLZAS
+    WHERE POL_NMRO_PLZA = P_POLIZA;
+   RETURN(FECHA_DESDE);
+ EXCEPTION
+   WHEN OTHERS THEN
+     RAISE_APPLICATION_ERROR(-20511,'Error consultando la fecha de revocación de la póliza...'||SQLERRM);
+
+ END FUN_VIGENCIA_POLIZA;
+
+ --
+ --
+ --
+ FUNCTION FUN_PAGO_CANCELADA(P_POLIZA  NUMBER) RETURN VARCHAR2 IS
+
+ EXISTE   NUMBER;
+
+ BEGIN
+   SELECT COUNT(8)
+     INTO EXISTE
+     FROM PLZAS
+    WHERE POL_NMRO_PLZA = P_POLIZA
+      AND POL_TPOPLZA = 'I'
+      AND POL_ESTADO_PLZA = 'C'
+      AND EXISTS (SELECT * FROM ESTADO_CTA_RCBOS
+                   WHERE EST_PLZA = POL_NMRO_PLZA
+                     AND EST_ESTDO_RCBO = 'I');
+   IF NVL(EXISTE,0) = 0 THEN
+     RETURN('N');
+   ELSE
+     RETURN('S');
+   END IF;
+
+ END FUN_PAGO_CANCELADA;
+
+ --
+ --
+ --
+ FUNCTION FUN_SINIESTRO_VIGENTE(P_SOLICITUD  NUMBER) RETURN VARCHAR2 IS
+
+ EXISTE   NUMBER;
+
+ BEGIN
+   SELECT COUNT(8)
+     INTO EXISTE
+     FROM DDAS_VGNTES_ARRNDMNTOS
+    WHERE DVA_NMRO_SLCTUD = P_SOLICITUD
+      AND DVA_ESTDO = '01'
+      AND EXISTS (SELECT * FROM AVSOS_SNSTROS, VLRES_SNSTROS
+                    WHERE SNA_NMRO_SNSTRO = VSN_NMRO_SNSTRO
+                      AND VSN_CNCPTO_VLOR = '01'
+                      AND DVA_NMRO_SLCTUD = SNA_NMRO_ITEM
+                      AND DVA_FCHA_MRA = SNA_FCHA_SNSTRO);
+
+   IF NVL(EXISTE,0) = 0 THEN
+     RETURN('N');
+   ELSE
+     RETURN('S');
+   END IF;
+
+ END FUN_SINIESTRO_VIGENTE;
+
+ --
+ --
+ --
+ FUNCTION FUN_FECHA_REVOCACION(P_POLIZA  NUMBER) RETURN DATE IS
+
+ FECHA_ESTADO   DATE;
+ FECHA          DATE;
+ ESTADO         PLZAS.POL_ESTADO_PLZA%TYPE;
+
+ BEGIN
+   BEGIN
+     SELECT POL_ESTADO_PLZA,POL_FCHA_HSTA_INCIAL
+       INTO ESTADO,FECHA
+       FROM PLZAS
+      WHERE POL_NMRO_PLZA = P_POLIZA;
+
+     IF ESTADO = 'R' THEN
+       BEGIN
+         SELECT MAX(CER_FCHA_EXPDCION)
+           INTO FECHA_ESTADO
+           FROM CRTFCDOS
+          WHERE CER_NMRO_PLZA = P_POLIZA
+            AND CER_TPO_MDFCCION = 'R';
+         RETURN(FECHA_ESTADO);
+       EXCEPTION
+         WHEN OTHERS THEN
+           RAISE_APPLICATION_ERROR(-20511,'Error consultando la fecha de revocación de la póliza...'||SQLERRM);
+       END;
+     ELSE
+       FECHA_ESTADO := FECHA;
+       RETURN(FECHA_ESTADO);
+     END IF;
+   EXCEPTION
+     WHEN OTHERS THEN
+       RAISE_APPLICATION_ERROR(-20511,'Error consultando el estado de la póliza...'||SQLERRM);
+   END;
+
+ END FUN_FECHA_REVOCACION;
+ --
+ --
+ --
+ FUNCTION FUN_DESCRIPCION_OBJECION(P_RAMO AVSOS_SNSTROS.SNA_RAM_CDGO%TYPE, P_CODIGO OBJCNES_PRDCTOS.OBP_CDGO%TYPE,
+                                   P_AMPARO AMPROS_SNSTROS.AMS_CDGO_AMPRO%TYPE ) RETURN VARCHAR2 IS
+
+    V_DESCRIPCION                              OBJCNES_PRDCTOS.OBP_DSCRPCION%TYPE;
+
+ BEGIN
+
+   BEGIN
+     SELECT OBP_DSCRPCION
+       INTO V_DESCRIPCION
+       FROM OBJCNES_PRDCTOS
+      WHERE OBP_CDGO = P_CODIGO
+        AND OBP_CDGO_AMPRO = P_AMPARO
+        AND OBP_RAM_CDGO = P_RAMO;
+
+   EXCEPTION
+     WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR(-20501,'Error en consultar la descipción del la objeción.');
+   END;
+
+   RETURN(V_DESCRIPCION);
+
+ END;
+
+ FUNCTION FUN_DESCRIPCION_SUSPENSION(P_RAMO AVSOS_SNSTROS.SNA_RAM_CDGO%TYPE, P_CODIGO SSPNSNES_PRDCTO.SPR_CDGO%TYPE) RETURN VARCHAR2 IS
+
+  V_DESCRIPCION                              SSPNSNES_PRDCTO.SPR_CDGO%TYPE;
+
+ BEGIN
+
+    BEGIN
+       select spr.spr_dscrpcion
+         into   V_DESCRIPCION
+         from   sspnsnes_prdcto spr
+        where  spr.spr_ram_cdgo = P_RAMO
+          and    spr.spr_cdgo = P_CODIGO;
+    exception
+      when no_data_found then
+        RAISE_APPLICATION_ERROR(-20501,'No existe esta causal de suspensión para este ramo.');
+      when too_many_rows then
+        V_DESCRIPCION := NULL;
+      END;
+
+   RETURN(V_DESCRIPCION);
+
+
+ END FUN_DESCRIPCION_SUSPENSION;
+
+
+ FUNCTION FUN_DESCRIPCION_DEVOLUCION(P_CODIGO DVLCION_CNTRTOS.DVC_CDGO%TYPE) RETURN VARCHAR2 IS
+
+   V_DESCRIPCION   SSPNSNES_PRDCTO.SPR_CDGO%TYPE;
+
+ BEGIN
+
+    BEGIN
+     	SELECT DVC.DVC_DSCRPCION
+    	  INTO V_DESCRIPCION
+    	  FROM  DVLCION_CNTRTOS DVC
+	     WHERE DVC.DVC_CDGO = P_CODIGO;
+    EXCEPTION
+    	WHEN OTHERS THEN
+	      V_DESCRIPCION := NULL;
+    END;
+
+    RETURN(V_DESCRIPCION);
+ END FUN_DESCRIPCION_DEVOLUCION;
+ 
+ --
+ --
+ --
+ FUNCTION FUN_CONSULTA_SINIESTRO(P_SOLICITUD  NUMBER, 
+                                 P_AMPARO     VARCHAR2,
+                                 P_FECHA      OUT DATE,
+                                 P_SINIESTRO  OUT NUMBER) RETURN VARCHAR2 IS
+   
+ 
+ BEGIN
+   BEGIN
+     SELECT SNA_FCHA_SNSTRO, SNA_NMRO_SNSTRO
+       INTO P_FECHA,P_SINIESTRO
+       FROM DDAS_VGNTES_ARRNDMNTOS, AMPROS_SNSTROS, AVSOS_SNSTROS
+      WHERE DVA_NMRO_SLCTUD = P_SOLICITUD
+        AND DVA_ESTDO = '01'
+        AND AMS_NMRO_ITEM = DVA_NMRO_SLCTUD
+        AND AMS_FCHA_MRA = DVA_FCHA_MRA
+        AND AMS_CDGO_AMPRO = P_AMPARO
+        AND SNA_NMRO_ITEM = DVA_NMRO_SLCTUD
+        AND SNA_FCHA_SNSTRO = DVA_FCHA_MRA
+        AND SNA_ESTDO_SNSTRO NOT IN ('05','03','06','04','09')
+        AND EXISTS (SELECT * FROM VLRES_SNSTROS, VLRES_PRDCTO
+                     WHERE VSN_NMRO_SNSTRO = SNA_NMRO_SNSTRO
+                       AND VSN_CNCPTO_VLOR = VPR_CDGO
+                       AND VPR_ESTDO_CNTA = 'S');
+     RETURN('S');
+   EXCEPTION
+     WHEN NO_DATA_FOUND THEN
+       RETURN('N');
+      WHEN OTHERS THEN
+        RAISE_APPLICATION_ERROR(-20501,'Error consultando los sinistros de la Solicitud..'||sqlerrm);
+   END;                  
+                  
+ END FUN_CONSULTA_SINIESTRO; 
+ 
+ --
+ -- VERIFICA SI ESTA SUSPENDIDA POR EL LIMITE DE INDEMNIZACION
+ --
+ FUNCTION FUN_COSULTA_LIMITE(P_SOLICITUD  NUMBER,
+                             P_FECHA_MORA  DATE) RETURN DATE IS
+ 
+ V_FECHA    DATE;
+                            
+ BEGIN
+   SELECT HH.SSL_FCHA_PGO_SSPNSION
+     INTO V_FECHA
+     FROM SNSTROS_SUS_LIMITE HH
+    WHERE HH.SSL_NMRO_ITEM = P_SOLICITUD
+      AND HH.SSL_FCHA_MRA = P_FECHA_MORA
+      AND HH.SSL_FCHA_PGO_SSPNSION >= P_FECHA_MORA;
+   RETURN(V_FECHA);
+  EXCEPTION
+   WHEN NO_DATA_FOUND THEN
+     V_FECHA := NULL;
+     RETURN(V_FECHA);
+       
+ END FUN_COSULTA_LIMITE;    
+ 
+ --
+ -- RETORNA LA FECHA DE DESISTIMIENTO O DEVOLUCION DE UN SINIESTRO
+ -- EN EL PARAMETRO P_TIPO SE ENVIA '03'- FECHA DEVOLUCION O '04' - FECHA DESISTIMIENTO
+ -- SE CREA LA FUNCION PARA NOVEDADES DE SINIESTROS WEB.
+ -- 
+ FUNCTION FUN_FECHA_DEVOLUCION(P_SOLICITUD   NUMBER,
+                               P_FECHA_MORA  DATE,
+                               P_TIPO        VARCHAR2) RETURN DATE IS
+ 
+ V_FECHA    DATE;
+                            
+ BEGIN
+   SELECT CND_FCHA_DVLCION
+     INTO V_FECHA
+     FROM CNTRTOS_DVLVER,AVSOS_SNSTROS
+    WHERE SNA_NMRO_ITEM = P_SOLICITUD
+      AND SNA_FCHA_SNSTRO = P_FECHA_MORA
+      AND SNA_ESTDO_SNSTRO = P_TIPO
+      AND CND_NMRO_SNSTRO = SNA_NMRO_SNSTRO;
+    RETURN(V_FECHA);
+  EXCEPTION
+   WHEN NO_DATA_FOUND THEN
+     IF P_TIPO = '03' THEN
+       BEGIN
+         SELECT DVA_FCHA_DVLCION
+           INTO V_FECHA
+           FROM DDAS_VGNTES_ARRNDMNTOS
+          WHERE DVA_NMRO_SLCTUD = P_SOLICITUD
+            AND DVA_FCHA_MRA = P_FECHA_MORA;
+         RETURN(V_FECHA);
+       EXCEPTION
+         WHEN NO_DATA_FOUND THEN     
+           V_FECHA := NULL;
+           RETURN(V_FECHA);
+       END;
+     ELSE
+       V_FECHA := NULL;
+       RETURN(V_FECHA);
+     END IF;
+    
+  END FUN_FECHA_DEVOLUCION;  
+  
+  --
+  --
+  --
+  FUNCTION FUN_FECHA_DESOCUPACION(P_SOLICITUD   NUMBER,
+                                  P_POLIZA      NUMBER) RETURN DATE IS
+   
+  CURSOR C_DATOS IS
+	  SELECT DVA_FCHA_DSCPCION
+	    FROM DDAS_VGNTES_ARRNDMNTOS,AMPROS_SNSTROS A
+	   WHERE DVA_NMRO_SLCTUD = P_SOLICITUD
+       AND A.AMS_NMRO_ITEM =  DVA_NMRO_SLCTUD
+       AND A.AMS_CDGO_AMPRO = '01'
+       AND A.AMS_FCHA_MRA = (SELECT MAX(AMS_FCHA_MRA)
+                               FROM AMPROS_SNSTROS B
+                              WHERE B.AMS_NMRO_ITEM = A.AMS_NMRO_ITEM
+                                AND B.AMS_CDGO_AMPRO = A.AMS_CDGO_AMPRO);
+
+     
+  V_FECHA         DATE;
+  V_FECHA_RETIRO  DATE;
+  
+  BEGIN
+    OPEN C_DATOS;
+    LOOP
+      FETCH C_DATOS INTO V_FECHA;
+      IF V_FECHA IS NOT NULL THEN
+        EXIT;
+      END IF;
+      IF C_DATOS%NOTFOUND THEN
+        V_FECHA_RETIRO  := FECHA_RETIRO_SEG(P_SOLICITUD,P_POLIZA,'00','12','01');
+        IF V_FECHA_RETIRO IS NULL THEN
+          V_FECHA := NULL;
+        ELSE
+          V_FECHA := V_FECHA_RETIRO;
+        END IF;
+        EXIT;
+      END IF;
+
+    END LOOP;
+    CLOSE C_DATOS;
+    RETURN(V_FECHA);
+    
+  END FUN_FECHA_DESOCUPACION;
+                         
+
+END PKG_CONSULTA_INDEMNIZACION;
+/

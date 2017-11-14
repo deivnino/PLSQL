@@ -1,0 +1,284 @@
+CREATE OR REPLACE PACKAGE BODY HR.PKG_REASIGNACION
+
+ IS
+   /** VARIABLES  GENERALES PARA LA DISTRIBUCION EN LINEA DE LOS SINIESTROS. **/
+   v_cod_his_dis                NUMBER (10)    := NULL; --Consecutico del proceso
+   v_rang_agru                  VARCHAR(5)     := NULL; --Rango de Agrupacion del tipo de distribucion a utilizar (algoritmo de distribuci?n)
+   v_tip_rang                   NUMBER(5)      := NULL; --Tipo de agrupacion implementado por el tipo  de distribucion (algoritmo de Distribucion).
+   v_rango_mor                  VARCHAR(5)     := NULL; --Nombre Rango  fecha mora
+   v_rango_des                  VARCHAR(5)     := NULL; --Nombre Rango fecha de desocupacion
+   v_rango_din                  VARCHAR(5)     := NULL; --Nombre Rango dinero
+   b_ok                         NUMBER(1)      := NULL;
+   
+   --INFORMACION DEL SINIESTRO
+   v_cod_sin                    NUMBER (10)    := NULL;
+   v_val_cap_sin                VARCHAR(5)     := NULL;
+   v_fecha_mora                 DATE           := NULL;
+   v_fech_desoc                 DATE           := NULL;
+   v_cod_tip_gest               NUMBER         := NULL;
+   v_sucursal_sin               NUMBER         := NULL;
+                 
+   PROCEDURE prc_distribuir_grupo ( p_cod_sin IN array_siniestros, p_cod_gest IN array_gestores , p_tip_distr in NUMBER) 
+   IS
+    BEGIN
+     BEGIN
+      select max(cod_his_dis) Into v_cod_his_dis from hist_distr;
+      EXCEPTION 
+      WHEN NO_DATA_FOUND THEN
+        v_cod_his_dis :=0;
+     END; 
+     
+     v_cod_his_dis:=v_cod_his_dis+1;
+     
+     FOR r_gest IN 1 ..  p_cod_gest.COUNT
+     LOOP
+       Insert into temp_gestores (cod_gestor) values (p_cod_gest(r_gest));
+     END LOOP;
+     COMMIT;
+     
+     select tip_agru, tip_ran 
+     Into v_rang_agru, v_tip_rang
+     from tip_distr where cod_tip_dis= p_tip_distr;
+     
+     FOR r_sin IN 1 .. p_cod_sin.COUNT
+     LOOP
+       v_cod_sin :=p_cod_sin(r_sin);
+       SELECT VAL_CAP, FECHA_MORA, COD_TIP_GES, SUCURSAL
+       INTO v_val_cap_sin, v_fecha_mora, v_cod_tip_gest,v_sucursal_sin 
+       FROM SINIESTRO WHERE cod_sin = v_cod_sin;
+       b_ok:= fct_algoritmo_distribucion (v_rang_agru, v_tip_rang );
+     END LOOP;  
+     
+     DELETE from temp_gestores;
+     Commit;  
+                        
+    END prc_distribuir_grupo; 
+    
+/***************************************************************************
+   NOMBRE:       fct_algoritmo_distribucion
+   DESCRIPCION: .
+   PARAMETROS DE ENTRADA: -P_RD, regla de distribucion encontrada.                             
+   PARAMETROS DE SALIDA: b_ok: 
+                        
+   MODIFICACIONES :
+   VERSION      FECHA       AUTOR          REQUERIMIENTO          DESCRIPCION DEL CAMBIO
+   ---------------------------------------------------------------------------------------------
+   1.0      27/09/2017    Jmurillo         PF 21.1                      Creacion.
+   ******************************************************************************/  
+   
+FUNCTION fct_algoritmo_distribucion (p_rang_agru IN VARCHAR, p_tip_rang IN NUMBER) RETURN NUMBER
+IS
+ b_ok         NUMBER (1)     :=1;      /*Boolean que indica si existe el valor en la regla de distribucion*/
+            
+BEGIN
+
+    IF p_rang_agru in ('ran','suc ran' ) THEN
+        IF p_tip_rang = 1 THEN
+            BEGIN
+             SELECT NOM_RAN INTO v_rango_din
+             FROM RANG_AGRU WHERE v_val_cap_sin BETWEEN VAL_INI AND VAL_FIN AND TIP_RAN=p_tip_rang;
+             EXCEPTION 
+              WHEN NO_DATA_FOUND THEN
+                b_ok :=0; 
+            END;
+            UPDATE SINIESTRO SET RANG_DIN = v_rango_din WHERE COD_SIN=v_cod_sin;
+            b_ok:= fct_aplica_distri(v_rang_agru, v_tip_rang);
+        ELSIF  p_tip_rang=2 then
+            BEGIN
+             SELECT NOM_RAN INTO v_rango_des
+             FROM RANG_AGRU WHERE (trunc(sysdate) -  trunc(v_fech_desoc)) BETWEEN VAL_INI AND VAL_FIN AND TIP_RAN=p_tip_rang;
+             EXCEPTION 
+              WHEN NO_DATA_FOUND THEN
+                b_ok :=0; 
+            END;
+            UPDATE SINIESTRO SET RANG_FECHA = v_rango_des WHERE COD_SIN=v_cod_sin;
+            b_ok:= fct_aplica_distri(v_rang_agru, v_tip_rang);
+        ELSIF  p_tip_rang=3 then
+            BEGIN
+             SELECT NOM_RAN INTO v_rango_mor
+             FROM RANG_AGRU WHERE (trunc(sysdate) -  trunc(v_fecha_mora)) BETWEEN VAL_INI AND VAL_FIN AND TIP_RAN=p_tip_rang;
+             EXCEPTION 
+              WHEN NO_DATA_FOUND THEN
+                b_ok :=0; 
+            END;
+            UPDATE SINIESTRO SET RANG_MORA = v_rango_mor WHERE COD_SIN=v_cod_sin;
+            b_ok:= fct_aplica_distri(v_rang_agru, v_tip_rang);    
+        ELSE
+            b_ok:= 0;
+        END IF;
+    ELSE
+       b_ok:= fct_aplica_distri(v_rang_agru, v_tip_rang);
+    END IF;      
+
+  RETURN b_ok;
+  
+END fct_algoritmo_distribucion;
+
+/***************************************************************************
+   NOMBRE:       fct_aplica_distri
+   DESCRIPCION: .
+   PARAMETROS DE ENTRADA:                    
+   PARAMETROS DE SALIDA: b_ok: 
+                        
+   MODIFICACIONES :
+   VERSION      FECHA       AUTOR          REQUERIMIENTO          DESCRIPCION DEL CAMBIO
+   ---------------------------------------------------------------------------------------------
+   1.0      27/09/2017    Jmurillo         PF 21.1                      Creacion.
+   ******************************************************************************/  
+
+FUNCTION fct_aplica_distri ( ps_tip_agru IN STRING, p_tip_rang IN NUMBER ) RETURN NUMBER
+IS
+ b_ok              NUMBER (1)  :=0;      /*Boolean que indica si existe el valor en la regla de distribucion*/
+ n_valor_total     NUMBER (30,10)  :=0;
+ 
+ cursor cur_gest_rango_din IS -- RANGO DE DINERO
+     select a.cod_gest codigo_gestor, nvl((((select sum (val_cap) from siniestro a, asignacion b , gest_loc c 
+                    where a.cod_sin=b.SINIESTRO_COD_SIN and b.GESTOR_COD_GEST = c.GESTOR_COD_GEST 
+                    and a.COD_TIP_GES= v_cod_tip_gest -- SEGUN TIPO DE GESTION QUE VIENE DEL SINIESTRO
+                    and a.SUCURSAL = v_sucursal_sin  AND a.RANG_DIN = v_rango_din
+                    and b.GESTOR_COD_GEST=a.cod_gest) * 100)/n_valor_total),0) porcentaje
+     from gestor a, gest_loc b
+     where a.cod_gest=b.GESTOR_COD_GEST
+     and a.COD_GEST IN (select cod_gestor from temp_gestores)  -- CADENA STRING CON LOS CODIGOS DE LOS GESTORES.
+     and est_gest='A'
+     and b.LOCALIZACION_COD_LOC= v_sucursal_sin
+     order by 2 asc;
+  
+  CURSOR cur_gest_rango_mor IS -- RANGO DE MORA
+     select a.cod_gest codigo_gestor, nvl((((select sum (val_cap) from siniestro a, asignacion b , gest_loc c 
+                    where a.cod_sin=b.SINIESTRO_COD_SIN and b.GESTOR_COD_GEST = c.GESTOR_COD_GEST 
+                    and a.COD_TIP_GES= v_cod_tip_gest -- SEGUN TIPO DE GESTION QUE VIENE DEL SINIESTRO
+                    and a.SUCURSAL = v_sucursal_sin  AND a.RANG_MORA = v_rango_mor
+                    and b.GESTOR_COD_GEST=a.cod_gest) * 100)/n_valor_total),0) porcentaje
+     from gestor a, gest_loc b
+     where a.cod_gest=b.GESTOR_COD_GEST
+     and a.COD_GEST IN (select cod_gestor from temp_gestores) -- CADENA STRING CON LOS CODIGOS DE LOS GESTORES.
+     and est_gest='A'
+     and b.LOCALIZACION_COD_LOC= v_sucursal_sin
+     order by 2 asc;
+     
+  CURSOR cur_gest_rango_des IS -- RANGO DE DESOCUPACION
+     select a.cod_gest codigo_gestor, nvl((((select sum (val_cap) from siniestro a, asignacion b , gest_loc c 
+                    where a.cod_sin=b.SINIESTRO_COD_SIN and b.GESTOR_COD_GEST = c.GESTOR_COD_GEST 
+                    and a.COD_TIP_GES= v_cod_tip_gest -- SEGUN TIPO DE GESTION QUE VIENE DEL SINIESTRO
+                    and a.SUCURSAL = v_sucursal_sin  AND a.RANG_FECHA = v_rango_des
+                    and b.GESTOR_COD_GEST=a.cod_gest) * 100)/n_valor_total),0) porcentaje
+     from gestor a, gest_loc b
+     where a.cod_gest=b.GESTOR_COD_GEST
+     and a.COD_GEST IN (select cod_gestor from temp_gestores) -- CADENA STRING CON LOS CODIGOS DE LOS GESTORES.
+     and est_gest='A'
+     and b.LOCALIZACION_COD_LOC= v_sucursal_sin
+     order by 2 asc;
+  
+ CURSOR cur_gest_total IS -- PARA CUANDO NO SE USA RANGO O ESTA SOLO POR SUCURSAL
+     select a.cod_gest codigo_gestor, nvl((((select sum (val_cap) from siniestro a, asignacion b , gest_loc c 
+                    where a.cod_sin=b.SINIESTRO_COD_SIN and b.GESTOR_COD_GEST = c.GESTOR_COD_GEST 
+                    and RANG_DIN is null and a.COD_TIP_GES = v_cod_tip_gest -- SEGUN TIPO DE GESTION QUE VIENE DEL SINIESTRO
+                    and a.SUCURSAL = v_sucursal_sin
+                    and b.GESTOR_COD_GEST=a.cod_gest) * 100)/n_valor_total),0) porcentaje
+     from gestor a, gest_loc b
+     where a.cod_gest=b.GESTOR_COD_GEST
+     and a.COD_GEST IN (select cod_gestor from temp_gestores) -- CADENA STRING CON LOS CODIGOS DE LOS GESTORES.
+     and est_gest='A'
+     and b.LOCALIZACION_COD_LOC= v_sucursal_sin
+     order by 2 asc ; 
+
+BEGIN
+   IF ps_tip_agru in ('na','Suc') THEN
+        --encuentra el total que tiene asignado el Gestor al momento de la distribucion
+        select sum (val_cap)
+        into n_valor_total
+        from siniestro a, asignacion b , gest_loc c
+        where a.cod_sin=b.SINIESTRO_COD_SIN
+        and b.GESTOR_COD_GEST = c.GESTOR_COD_GEST 
+        and a.SUCURSAL =v_sucursal_sin
+        and a.COD_TIP_GES= v_cod_tip_gest -- SEGUN TIPO DE GESTION QUE VIENE DEL SINIESTRO
+        and b.GESTOR_COD_GEST IN (select cod_gestor from temp_gestores) -- CADENA sTRING CON LOS CODIGOS DE LOS GESTORES.
+        and RANG_DIN is null;
+      
+        IF n_valor_total = NULL THEN
+          n_valor_total :=1; --NO EXISTE NADA ASIGNADO ASIGNACION;
+        END IF;
+        FOR r_gest_total IN cur_gest_total
+        LOOP
+            insert into asignacion  (SINIESTRO_COD_SIN,GESTOR_COD_GEST) values (v_cod_sin , r_gest_total.codigo_gestor);
+            b_ok:=1;
+            EXIT WHEN  b_ok=1;
+        END LOOP;           
+   ELSE
+        IF v_tip_rang = 1 THEN  
+      
+            --encuentra el total que tiene asignado el Gestor al momento de la distribucion por rango
+            select sum (val_cap)
+            into n_valor_total
+            from siniestro a, asignacion b , gest_loc c
+            where a.cod_sin=b.SINIESTRO_COD_SIN
+            and b.GESTOR_COD_GEST = c.GESTOR_COD_GEST 
+            and a.SUCURSAL =v_sucursal_sin
+            and a.COD_TIP_GES=v_cod_tip_gest -- SEGUN TIPO DE GESTION QUE VIENE DEL SINIESTRO
+            and b.GESTOR_COD_GEST IN (select cod_gestor from temp_gestores) -- CADENA STRING CON LOS CODIGOS DE LOS GESTORES.
+            AND a.RANG_DIN = v_rango_din;  -- RANGO DE DINERO
+      
+            IF n_valor_total = NULL THEN
+                n_valor_total :=1; --NO EXISTE NADA ASIGNADO ASIGNACION;
+            END IF;
+     
+            FOR r_gest_rango_din IN cur_gest_rango_din
+            LOOP
+                insert into asignacion  (SINIESTRO_COD_SIN,GESTOR_COD_GEST) values (v_cod_sin , r_gest_rango_din.codigo_gestor);
+                b_ok:=1;
+                EXIT WHEN  b_ok=1;
+            END LOOP;
+        ELSIF v_tip_rang = 2 THEN
+            --encuentra el total que tiene asignado el Gestor al momento de la distribucion rango desocupacion
+            select sum (val_cap)
+            into n_valor_total
+            from siniestro a, asignacion b , gest_loc c
+            where a.cod_sin=b.SINIESTRO_COD_SIN
+            and b.GESTOR_COD_GEST = c.GESTOR_COD_GEST 
+            and a.SUCURSAL =v_sucursal_sin
+            and a.COD_TIP_GES=v_cod_tip_gest -- SEGUN TIPO DE GESTION QUE VIENE DEL SINIESTRO
+            and b.GESTOR_COD_GEST IN (select cod_gestor from temp_gestores) -- CADENA sTRING CON LOS CODIGOS DE LOS GESTORES.
+            AND a.RANG_FECHA = v_rango_des; -- RANGO DE FEHCA DESOCUPACION
+      
+            IF n_valor_total = NULL THEN
+                n_valor_total :=1; --NO EXISTE NADA ASIGNADO ASIGNACION;
+            END IF;
+     
+            FOR r_gest_rango_des IN cur_gest_rango_des
+            LOOP
+                insert into asignacion  (SINIESTRO_COD_SIN,GESTOR_COD_GEST) values (v_cod_sin , r_gest_rango_des.codigo_gestor);
+                b_ok:=1;
+                EXIT WHEN  b_ok=1;
+            END LOOP;
+        ELSIF   v_tip_rang = 3 THEN
+            --encuentra el total que tiene asignado el Gestor al momento de la distribucion rango MORA
+            select sum (val_cap)
+            into n_valor_total
+            from siniestro a, asignacion b , gest_loc c
+            where a.cod_sin=b.SINIESTRO_COD_SIN
+            and b.GESTOR_COD_GEST = c.GESTOR_COD_GEST 
+            and a.SUCURSAL =v_sucursal_sin
+            and a.COD_TIP_GES=v_cod_tip_gest -- SEGUN TIPO DE GESTION QUE VIENE DEL SINIESTRO
+            and b.GESTOR_COD_GEST IN (select cod_gestor from temp_gestores) -- CADENA sTRING CON LOS CODIGOS DE LOS GESTORES.
+            AND a.RANG_MORA = v_rango_mor;-- RANGO DE MORA
+      
+            IF n_valor_total = NULL THEN
+                n_valor_total :=1; --NO EXISTE NADA ASIGNADO ASIGNACION;
+            END IF;
+     
+            FOR r_gest_rango_mor IN cur_gest_rango_mor
+            LOOP
+                insert into asignacion  (SINIESTRO_COD_SIN,GESTOR_COD_GEST) values (v_cod_sin , r_gest_rango_mor.codigo_gestor);
+                b_ok:=1;
+                EXIT WHEN  b_ok=1;
+            END LOOP;
+        END IF;
+   END IF;
+
+RETURN b_ok;
+
+END fct_aplica_distri;
+   
+END PKG_REASIGNACION;
+/

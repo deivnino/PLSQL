@@ -1,0 +1,3 @@
+@"Vistas\CO532_V_ABRESTDCUENTASTT.sql"
+@"Vistas\CO532_V_PAGO_CONCEPT_SINIESTRO.sql"
+exit

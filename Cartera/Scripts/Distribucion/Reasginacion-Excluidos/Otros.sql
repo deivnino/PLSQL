@@ -1,0 +1,1 @@
+create table co532_temp_gestores (cod_gestor number);

@@ -1,0 +1,574 @@
+CREATE OR REPLACE PACKAGE BODY HR.pkg_distribucion
+ IS
+
+   /** VARIABLES  GENERALES PARA LA DISTRIBUCION EN LINEA DE LOS SINIESTROS. **/
+   v_cod_his_dis                NUMBER (10)    := 0; --Consecutico del proceso
+   v_rd                         NUMBER (10)    := NULL;  /*Regla de Distribucion a aplicar*/
+   v_gestores                   NUMBER (1)     := NULL;  /*Variable que identifica si existen gestores*/
+   v_exclusiones                NUMBER (2)     := NULL;  /*VVariable que identifica si se excluyo o no el siniestro*/
+   v_gestor                     NUMBER (2)     := NULL;
+   v_porcentaje                 NUMBER (30,10) := NULL;
+   v_rango_din                  STRING (10)    := NULL;
+   v_tipo_dist                  NUMBER         := NULL; /*tipo de distribucion (algoritmo) que aplica para la asignacion*/
+   v_ok                         NUMBER (1)     := NULL;
+   v_cod_gest                   NUMBER         := NULL; /*Codigo del gestor*/
+   v_tip_excl                   NUMBER         := NULL; /*Codigo del gestor*/
+   
+   /**Valores del siniestro que permitiran identificar l regla de distribucion del Siniestro**/
+   
+   v_cod_sin                    NUMBER (2)     := NULL;
+   v_sucursal_sin               NUMBER (2)     := NULL;  /*Sucursal del Siniestro*/
+   v_tip_prod_sin               NUMBER (2)     := NULL;  /*Tipo de producto del Siniestro*/
+   v_subti_prod_sin             NUMBER (2)     := NULL;  /*Subtipo  del Siniestro*/
+   v_est_sin                    NUMBER (2)     := NULL;  /*Estado siniestro del Siniestro*/
+   v_est_pago_sin               NUMBER (2)     := NULL;  /*Estado del pago del Siniestro*/
+   v_tipo_amp_sin               NUMBER (2)     := NULL;  /*Tipo amparo del Siniestro*/
+   v_tip_pol_sin                NUMBER (2)     := NULL;  /*Tipo de poliza del Siniestro*/
+   v_area_sin                   NUMBER (2)     := NULL;  /*Area del Siniestro*/
+   v_ubicacion_sin              NUMBER (2)     := NULL;  /*Ubicacion del Siniestro*/
+   v_est_ali_sin                NUMBER (2)     := NULL;  /*Estado Alistamiento del Siniestro*/
+   v_val_cap_sin                NUMBER (20,4)  := NULL;  /*Valor del siniestro en CAPITAL*/
+   v_val_col_sin                NUMBER (20,4)  := NULL;  /*Valor del siniestro en CAPITAL*/
+   v_fecha_ing_sin              DATE           := trunc(SYSDATE);
+   v_fecha_mora                 DATE           := NULL;
+         
+   /***************************************************************************
+    NOMBRE:       prc_distribuir_linea
+    DESCRIPCION: Permite hacer la distribucion de los siniestros que ingresan en linea .
+    PARAMETROS DE ENTRADA: - p_consecutivo_proceso:        Consecutivo del proceso automatico
+    PARAMETROS DE SALIDA: TRUE/FALSE
+    MODIFICACIONES :
+    VERSION      FECHA       AUTOR          REQUERIMIENTO          DESCRIPCION DEL CAMBIO
+    ---------------------------------------------------------------------------------------------
+    1.0      15/09/2017    Jmurillo         PF 21.1                      Creacion.
+    ******************************************************************************/
+   
+   PROCEDURE prc_distribuir_linea (p_id_siniestro IN NUMBER) 
+   IS
+    BEGIN
+     
+    begin
+      select max(cod_his_dis) Into v_cod_his_dis from hist_distr;
+      EXCEPTION 
+      WHEN NO_DATA_FOUND THEN
+        v_cod_his_dis :=0;
+    end; 
+     
+     v_cod_his_dis:=v_cod_his_dis+1;
+     
+     v_cod_sin := p_id_siniestro;
+     SELECT SUCURSAL, TIP_PROD, SUBTI_PROD, EST_SIN, EST_PAG, TIP_AMP, TIP_POL, AREA,
+            UBICACION, EST_ALI, VAL_CAP , FECHA_ING, VAL_COL,FECHA_MORA  
+     INTO   v_sucursal_sin, v_tip_prod_sin, v_subti_prod_sin, v_est_sin, v_est_pago_sin, v_tipo_amp_sin, v_tip_pol_sin, v_area_sin,
+            v_ubicacion_sin, v_est_ali_sin, v_val_cap_sin, v_fecha_ing_sin, v_val_col_sin,v_fecha_mora
+     FROM SINIESTRO  WHERE COD_SIN = p_id_siniestro;
+     
+     v_rd := fct_ident_regla (p_id_siniestro);
+     
+     IF v_rd = -1 THEN
+       prc_marcar_excl_sin (p_id_siniestro,1);
+       RETURN;
+     END IF; 
+        
+     v_gestores := fct_valida_gestores (v_rd);
+     
+     IF v_gestores = 0 THEN
+       prc_marcar_excl_sin (p_id_siniestro,2);
+       RETURN;
+     END IF;
+     
+     v_exclusiones := fct_exclusiones (v_rd);
+     
+     IF v_exclusiones > 0 THEN
+       prc_marcar_excl_sin (p_id_siniestro,v_exclusiones);
+       RETURN;
+     END IF;
+     
+     v_ok := fct_aplica_asignacion (v_rd);
+     
+     update siniestro set FECHA_PROCESO = sysdate, REGL_DIST=v_rd where cod_sin=p_id_siniestro;
+     
+     insert into hist_distr  (COD_HIS_DIS, FECHA, TIPO_DISTRIBUCION_COD_TIP_DIS, REG_DIST, DESCRIPCION, USUARIO)
+     values (v_cod_his_dis,SYSDATE,v_tipo_dist ,V_RD,'SINIESTRO NUEVO',USER);
+     
+     select   GESTOR_COD_GEST into v_cod_gest from asignacion where SINIESTRO_COD_SIN =v_cod_sin;
+     
+     insert into det_hist_distr (COD_DET_HIST_DIS,HIS_DIST_COD_HIS_DIS,SINIESTRO_COD_SIN,SUCURSAL,TIPO_PROD ,SUBTIP_PROD,EST_SIN ,EST_PAG,TIP_AMP,
+                                TIP_POL,AREA,UBICACION,EST_ALI, VAL_CAP,VAL_COL,COD_GEST_CAP,COD_GEST_COL,FECHA_PROCESO,COD_TIP_GEST,TIPO_EXCL,
+                                RANG_FECHA,RANG_MORA,RANG_DIN ,FECH_ING ,FECHA_MORA)
+               Values (sec_det_hist_dist.nextval, v_cod_his_dis, v_cod_sin,v_sucursal_sin, v_tip_prod_sin, v_subti_prod_sin, v_est_sin, v_est_pago_sin, v_tipo_amp_sin, 
+                        v_tip_pol_sin, v_area_sin, v_ubicacion_sin, v_est_ali_sin, v_val_cap_sin,v_val_col_sin ,v_cod_gest,null, sysdate,1,null,
+                        null,null,v_rango_din,v_fecha_ing_sin, v_fecha_mora);
+     COMMIT;  
+                   
+    END prc_distribuir_linea; 
+    
+/***************************************************************************
+   NOMBRE:       fct_regla_distribucion
+   DESCRIPCION: Funcion que a partir de la regla de distribucion, identifica el algoritmo (tipo de distribucion) 
+                y su posible implementacion de acuerdo a los parametros.
+   PARAMETROS DE ENTRADA: -P_RD, regla de distribucion encontrada.                             
+   PARAMETROS DE SALIDA: b_ok: 
+                        
+   MODIFICACIONES :
+   VERSION      FECHA       AUTOR          REQUERIMIENTO          DESCRIPCION DEL CAMBIO
+   ---------------------------------------------------------------------------------------------
+   1.0      19/09/2017    Jmurillo         PF 21.1                      Creacion.
+   ******************************************************************************/  
+
+FUNCTION fct_regla_distribucion ( ps_tip_agru IN STRING ) RETURN NUMBER
+IS
+ b_ok              NUMBER (1)  :=0;      /*Boolean que indica si existe el valor en la regla de distribucion*/
+ n_valor_total     NUMBER (30,10)  :=0;
+ 
+ cursor cur_gest_rango IS
+  select a.cod_gest codigo_gestor, nvl((((select sum (val_cap) from siniestro a, asignacion b , gest_loc c 
+                    where a.cod_sin=b.SINIESTRO_COD_SIN and b.GESTOR_COD_GEST = c.GESTOR_COD_GEST 
+                    and a.COD_TIP_GES =1 -- TIPO GESTION DESISTIMIENTOS. SOLO NUEVOS
+                    and a.SUCURSAL = v_sucursal_sin  AND a.RANG_DIN = v_rango_din
+                    and b.GESTOR_COD_GEST=a.cod_gest) * 100)/n_valor_total),0) porcentaje
+     from gestor a, gest_loc b
+     where a.cod_gest=b.GESTOR_COD_GEST
+     and a.COD_TIP_GESTOR = v_gestores
+     and est_gest='A'
+     and b.LOCALIZACION_COD_LOC= v_sucursal_sin
+     order by 2 asc;
+     
+ CURSOR cur_gest_total IS
+  select a.cod_gest codigo_gestor, nvl((((select sum (val_cap) from siniestro a, asignacion b , gest_loc c 
+                    where a.cod_sin=b.SINIESTRO_COD_SIN and b.GESTOR_COD_GEST = c.GESTOR_COD_GEST 
+                    and RANG_DIN is null and a.COD_TIP_GES =1 -- TIPO GESTION DESISTIMIENTOS. SOLO NUEVOS
+                    and a.SUCURSAL = v_sucursal_sin
+                    and b.GESTOR_COD_GEST=a.cod_gest) * 100)/n_valor_total),0) porcentaje
+     from gestor a, gest_loc b
+     where a.cod_gest=b.GESTOR_COD_GEST
+     and a.COD_TIP_GESTOR = v_gestores
+     and est_gest='A'
+     and b.LOCALIZACION_COD_LOC= v_sucursal_sin
+     order by 2 asc ; 
+
+BEGIN
+   IF ps_tip_agru = 'na' THEN
+      --encuentra el total que tiene asignado el Gestor al momento de la distribucion
+      select sum (val_cap)
+      into n_valor_total
+      from siniestro a, asignacion b , gest_loc c
+      where a.cod_sin=b.SINIESTRO_COD_SIN
+      and b.GESTOR_COD_GEST = c.GESTOR_COD_GEST 
+      and a.SUCURSAL =v_sucursal_sin
+      and a.COD_TIP_GES= 1 -- TIPO GESTION DESISTIMIENTOS. SOLO NUEVOS
+      and RANG_DIN is null;
+      
+      IF n_valor_total = NULL THEN
+          n_valor_total :=1; --NO EXISTE NADA ASIGNADO ASIGNACION;
+      END IF;
+     FOR r_gest_total IN cur_gest_total
+      LOOP
+        insert into asignacion  (SINIESTRO_COD_SIN,GESTOR_COD_GEST) values (v_cod_sin , r_gest_total.codigo_gestor);
+        b_ok:=1;
+         EXIT WHEN  b_ok=1;
+      END LOOP;           
+   ELSE
+      
+      --encuentra el total que tiene asignado el Gestor al momento de la distribucion
+      select sum (val_cap)
+      into n_valor_total
+      from siniestro a, asignacion b , gest_loc c
+      where a.cod_sin=b.SINIESTRO_COD_SIN
+      and b.GESTOR_COD_GEST = c.GESTOR_COD_GEST 
+      and a.SUCURSAL =v_sucursal_sin
+      and a.COD_TIP_GES=1 -- TIPO GESTION DESISTIMIENTOS. SOLO NUEVOS
+      AND a.RANG_DIN = v_rango_din;
+      
+      IF n_valor_total = NULL THEN
+          n_valor_total :=1; --NO EXISTE NADA ASIGNADO ASIGNACION;
+      END IF;
+     
+     FOR r_gest_rango IN cur_gest_rango
+      LOOP
+        insert into asignacion  (SINIESTRO_COD_SIN,GESTOR_COD_GEST) values (v_cod_sin , r_gest_rango.codigo_gestor);
+        b_ok:=1;
+        EXIT WHEN  b_ok=1;
+      END LOOP;
+   END IF;
+
+RETURN b_ok;
+
+END fct_regla_distribucion;
+
+/***************************************************************************
+   NOMBRE:       fct_aplica_asignacion
+   DESCRIPCION: Funcion que busca los gestores que aplica y los asigna al siniestro insertando en ASIGNACION.
+   PARAMETROS DE ENTRADA: tipo_agrupacion.                           
+   PARAMETROS DE SALIDA: b_ok: 
+                        
+   MODIFICACIONES :
+   VERSION      FECHA       AUTOR          REQUERIMIENTO          DESCRIPCION DEL CAMBIO
+   ---------------------------------------------------------------------------------------------
+   1.0      20/09/2017    Jmurillo         PF 21.1                      Creacion.
+   ******************************************************************************/  
+
+FUNCTION fct_aplica_asignacion ( p_rd IN NUMBER ) RETURN NUMBER
+IS
+ b_ok              NUMBER (1)  :=0;      /*Boolean que indica si existe el valor en la regla de distribucion*/
+ s_tip_agru        STRING (10) :=NULL;  /*Captura el tipo de agrupacion usado en la regla de distribucion*/
+ n_tip_agru        NUMBER (1)  :=NULL;  /*Captura el tipo de rango implementadoen la regla de distribucion*/
+ 
+ 
+
+BEGIN
+    SELECT A.TIP_AGRU, A.TIP_RAN , B.TIPO_DISTRIBUCION_COD_TIP_DIS
+    INTO s_tip_agru, n_tip_agru, v_tipo_dist
+    FROM TIP_DISTR A, REG_DIST B WHERE
+    A.COD_TIP_DIS=B.TIPO_DISTRIBUCION_COD_TIP_DIS
+    AND B.COD_REG_DIS=p_rd;
+    
+    IF s_tip_agru in ('ran','suc ran' ) THEN
+        IF n_tip_agru = 1 THEN
+            BEGIN
+             SELECT NOM_RAN INTO v_rango_din
+             FROM RANG_AGRU WHERE v_val_cap_sin BETWEEN VAL_INI AND VAL_FIN AND TIP_RAN=1;
+             EXCEPTION 
+              WHEN NO_DATA_FOUND THEN
+                b_ok :=0; --NO EXISTE RAAAAANGO;
+            END;
+            
+            UPDATE SINIESTRO SET RANG_DIN = v_rango_din WHERE COD_SIN=v_cod_sin;
+            
+            b_ok := fct_regla_distribucion (s_tip_agru);
+            
+         ELSIF n_tip_agru=2 then
+            b_ok:=0;
+         ELSIF n_tip_agru=3 then
+            b_ok:= 0;
+         ELSE
+            b_ok:= 0;
+        END IF;
+    ELSE
+        b_ok := fct_regla_distribucion (s_tip_agru);
+    END IF;
+
+RETURN b_ok;
+
+END fct_aplica_asignacion;
+
+
+
+/***************************************************************************
+   NOMBRE:       fct_exclusiones
+   DESCRIPCION: Funcion para recorrer las exclusiones parametrizadas en las reglas de distribuci?n.
+   PARAMETROS DE ENTRADA: -P_RD, regla de distribucion encontrada.                             
+   PARAMETROS DE SALIDA: 
+                        0- el siniestro no fue excluido
+                        3- exclusiones por fecha y hora
+                        4- excluido por fecha y estado
+                        5- excluido por monto
+                        6- excluido por caso
+                        7- excluido por poliza.
+   MODIFICACIONES :
+   VERSION      FECHA       AUTOR          REQUERIMIENTO          DESCRIPCION DEL CAMBIO
+   ---------------------------------------------------------------------------------------------
+   1.0      19/09/2017    Jmurillo         PF 21.1                      Creacion.
+   ******************************************************************************/   
+
+FUNCTION fct_exclusiones (p_rd IN NUMBER)
+      RETURN NUMBER
+   IS
+    b_encontro NUMBER (1):=0; /*Boolean que indica si existe o no la exclusion*/
+    n_dia      NUMBER(2) :=NULL;
+    s_hora     CHAR(6)   :=NULL;
+    s_hora_ini CHAR(6)   :=NULL;
+    s_hora_fin CHAR(6)   :=NULL;
+    -- Cursor para obtener las exclusiones de  fecha y hora en regla de distribucion
+    CURSOR cur_excl_fec IS
+        SELECT dia, hora
+        FROM EXCL_FEC 
+        WHERE REGLA_DISTRIBUCION_COD_REG_DIS= p_rd;
+    
+    CURSOR cur_excl_est_fec IS
+        SELECT EST_SIN,FECHA
+        FROM EXCL_EST_FEC 
+        WHERE REGLA_DISTRIBUCION_COD_REG_DIS= p_rd;
+        
+    CURSOR cur_excl_mont IS
+        SELECT MINIMO,MAXIMO, TIP_EXCL
+        FROM EXCL_MONT
+        WHERE REGLA_DISTRIBUCION_COD_REG_DIS= p_rd;
+    
+    CURSOR cur_excl_cas IS
+        SELECT SINIESTRO_COD_SIN, TIPO_EXCL
+        FROM EXCL_CAS
+        WHERE REGLA_DISTRIBUCION_COD_REG_DIS= p_rd;
+    
+    CURSOR cur_excl_pol IS
+        SELECT POLIZA_COD_POL,TIP_EXC
+        FROM EXCL_POL
+        WHERE REGLA_DISTRIBUCION_COD_REG_DIS= p_rd;
+         
+   BEGIN
+      FOR r_exc_fec IN cur_excl_fec
+        LOOP
+        n_dia:=to_number(TO_CHAR(v_fecha_ing_sin,'dd'));
+        s_hora := to_char(v_fecha_ing_sin,'HH24:MI');
+        s_hora_ini := To_char (r_exc_fec.HORA, 'HH24:MI');
+        s_hora_fin := to_char (To_date ('01/01/0001 23:59:00', 'MM/DD/YYYY HH24:MI:SS'),'HH24:MI');
+        IF  n_dia = r_exc_fec.dia AND (s_hora BETWEEN s_hora_ini and s_hora_fin )then
+            b_encontro:=3;
+            v_tip_excl := 'EM'; 
+            RETURN b_encontro;                       
+        END IF;              
+            
+        END LOOP;
+        
+      FOR r_excl_est_fec IN cur_excl_est_fec
+        LOOP
+         IF  r_excl_est_fec.EST_SIN = v_est_sin AND (trunc (r_excl_est_fec.FECHA) = trunc (v_fecha_ing_sin)) then
+            b_encontro:=4;
+            v_tip_excl := 'EM'; 
+            RETURN b_encontro;                       
+         END IF;              
+            
+        END LOOP;
+        
+      FOR r_excl_mont IN cur_excl_mont
+        
+        LOOP
+        v_tip_excl := r_excl_mont.TIP_EXCL;
+         IF  v_val_cap_sin <= r_excl_mont.MINIMO OR v_val_cap_sin >= r_excl_mont.MAXIMO then
+            b_encontro:=5;
+            RETURN b_encontro;                       
+         END IF;              
+            
+        END LOOP;
+       
+      FOR r_excl_cas IN cur_excl_cas
+        
+        LOOP
+        v_tip_excl:=r_excl_cas.TIPO_EXCL;
+         IF  r_excl_cas.SINIESTRO_COD_SIN = v_cod_sin  then
+            b_encontro:=6;
+            RETURN b_encontro;                       
+         END IF;              
+            
+        END LOOP;
+        
+      FOR r_excl_pol IN cur_excl_pol
+        
+        LOOP
+        v_tip_excl := r_excl_pol.TIP_EXC;
+         IF  r_excl_pol.POLIZA_COD_POL = v_cod_sin  then
+            b_encontro:=7;
+            RETURN b_encontro;                       
+         END IF;              
+            
+        END LOOP;
+      
+  RETURN b_encontro;    
+   
+END fct_exclusiones;
+
+/***************************************************************************
+   NOMBRE:       fct_valida_gestores
+   DESCRIPCION: Funciona para validar si existen gestores en la regla de distribucion que aplica para el siniestro 
+                con la sucursal.
+   PARAMETROS DE ENTRADA: -P_RD, regla de distribucion encontrada.
+                              
+   PARAMETROS DE SALIDA: 1/0 si encontro o no encontro.
+   MODIFICACIONES :
+   VERSION      FECHA       AUTOR          REQUERIMIENTO          DESCRIPCION DEL CAMBIO
+   ---------------------------------------------------------------------------------------------
+   1.0      19/09/2017    Jmurillo         PF 21.1                      Creacion.
+   ******************************************************************************/   
+
+FUNCTION fct_valida_gestores ( p_rd IN NUMBER ) RETURN NUMBER
+IS
+ b_ok              NUMBER (1) :=1;      /*Boolean que indica si existe el valor en la regla de distribucion*/
+ s_tipo_gestor     STRING (10) :=NULL;  /*Captura los tipos de gestores existentes en la regla de distribucion*/
+
+BEGIN
+    BEGIN
+        SELECT distinct A.VARIABLE_COD_VAR
+        INTO s_tipo_gestor
+        FROM VAR_REGL A, GESTOR  B, GEST_LOC C
+        WHERE B.COD_TIP_GESTOR=A.VARIABLE_COD_VAR
+        AND B.COD_GEST = C.GESTOR_COD_GEST
+        AND C.LOCALIZACION_COD_LOC = v_sucursal_sin
+        AND A.REGLA_DISTRIBUCION_COD_REG_DIS= p_rd
+        AND VARIABLE_TIP_VAR= 1 AND B.EST_GEST='A';
+        EXCEPTION
+            WHEN NO_DATA_FOUND THEN
+                b_ok :=0;
+        END;
+    
+
+RETURN b_ok;
+
+END fct_valida_gestores;
+
+  /***************************************************************************
+   NOMBRE:       prc_marcar_excl_sin
+   DESCRIPCION: Funcion para actualizar el siniestro con la informacion respectiva de excluido por al gun motivo.
+   PARAMETROS DE ENTRADA:
+               - P_ID_SINIESTRO: Numero del siniestro al cual se le identificar? la regla de distribucion.
+               - P_COD_EXCL: Codigo de exclusion para el siniestro.
+   PARAMETROS DE SALIDA: N/A
+   MODIFICACIONES :
+   VERSION      FECHA       AUTOR          REQUERIMIENTO          DESCRIPCION DEL CAMBIO
+   ---------------------------------------------------------------------------------------------
+   1.0      18/09/2017    Jmurillo         PF 21.1                      Creacion.
+   ******************************************************************************/ 
+
+
+PROCEDURE prc_marcar_excl_sin (p_id_siniestro IN NUMBER, p_cod_excl IN NUMBER) IS
+BEGIN
+      UPDATE SINIESTRO 
+      SET MOTIVO_EXCLUSION_COD_MOT_EXC = p_cod_excl, TIPO_EXCL = v_tip_excl, 
+      FECHA_PROCESO = TRUNC(SYSDATE)
+    WHERE COD_SIN = p_id_siniestro;
+      COMMIT;
+END;
+
+    
+    /***************************************************************************
+   NOMBRE:       fct_vident_regla
+   DESCRIPCION: Funcion que retorna la regla de distribucion que aplicar? al siniestrop.
+   PARAMETROS DE ENTRADA:
+               - P_ID_SINIESTRO: Numero del siniestro al cual se le identificar? la regla de distribucion.
+   PARAMETROS DE SALIDA: Numerico, regla de distribucion.
+   MODIFICACIONES :
+   VERSION      FECHA       AUTOR          REQUERIMIENTO          DESCRIPCION DEL CAMBIO
+   ---------------------------------------------------------------------------------------------
+   1.0      18/09/2017    Jmurillo         PF 21.1                      Creacion.
+   ******************************************************************************/ 
+    
+  FUNCTION fct_ident_regla (p_id_siniestro IN NUMBER)
+      RETURN NUMBER
+   IS
+    b_encontro NUMBER (1); /*Boolean que indica si existe o no Regla De Distribucion*/
+   
+    -- Cursor para obtener las reglas de distribucion existentes
+      CURSOR cur_reglas
+      IS
+         SELECT COD_REG_DIS  
+         FROM REG_DIST
+         WHERE PER_REG='ESN' AND ESTADO=1
+         ORDER BY PRIORIDAD ASC;
+         
+   BEGIN
+      FOR r_reglas IN cur_reglas
+        LOOP
+            b_encontro :=1;
+            v_rd := r_reglas.COD_REG_DIS;
+            IF b_encontro = 1 THEN
+                IF (v_sucursal_sin is not NULL and fct_variables_sin (3,v_sucursal_sin) = 0) THEN
+                    b_encontro :=0;               
+                END IF;
+            END IF;
+                         
+            IF b_encontro = 1 THEN
+                IF (v_tip_prod_sin is not NULL and fct_variables_sin (4,v_tip_prod_sin) = 0) THEN
+                    b_encontro :=0;                  
+                END IF;
+            END IF;            
+            
+            IF b_encontro = 1 THEN
+                IF (v_subti_prod_sin is not NULL and fct_variables_sin (5,v_subti_prod_sin) = 0) THEN
+                    b_encontro :=0;                  
+                END IF;
+            END IF;
+            
+            IF b_encontro = 1 THEN
+                IF (v_est_sin is not NULL and fct_variables_sin (6,v_est_sin) = 0 ) THEN
+                    b_encontro :=0;                  
+                END IF;
+            END IF;
+            
+            IF b_encontro = 1 THEN
+                IF (v_est_pago_sin is not NULL and fct_variables_sin (7,v_est_pago_sin) = 0 ) THEN
+                    b_encontro :=0;                  
+                END IF;
+            END IF;
+            
+            IF b_encontro = 1 THEN
+                IF (v_tipo_amp_sin is not NULL and fct_variables_sin (8,v_tipo_amp_sin) = 0 ) THEN
+                    b_encontro :=0;                  
+                END IF;
+            END IF;
+            
+            IF b_encontro = 1 THEN
+                IF (v_tip_pol_sin is not NULL and fct_variables_sin (9,v_tip_pol_sin) = 0 ) THEN
+                    b_encontro :=0;                  
+                END IF;
+            END IF;
+            
+            IF b_encontro = 1 THEN
+                IF (v_area_sin is not NULL and fct_variables_sin (10,v_area_sin) = 0 ) THEN
+                    b_encontro :=0;                  
+                END IF;
+            END IF;            
+            
+            IF b_encontro = 1 THEN
+                IF (v_ubicacion_sin is not NULL and fct_variables_sin (11,v_ubicacion_sin) = 0 ) THEN
+                    b_encontro :=0;                  
+                END IF;
+            END IF;
+            
+            IF b_encontro = 1 THEN
+                IF (v_est_ali_sin is not NULL and fct_variables_sin (12,v_est_ali_sin) = 0 ) THEN
+                    b_encontro :=0;                  
+                END IF;
+            END IF;
+            
+            EXIT WHEN b_encontro=1;
+            
+        END LOOP;
+        
+      IF b_encontro = 0 THEN
+        v_rd :=-1;
+      END IF;
+      
+      RETURN v_rd;
+   
+   END fct_ident_regla;
+   
+
+/***************************************************************************
+   NOMBRE:       fct_variables_sin
+   DESCRIPCION: Funcion que valida el valor del siniestro Vs el valor de la variable parametrizada en la Regla de distribucion.
+   PARAMETROS DE ENTRADA:
+               - p_tip_val: Tipo de la variable a validar.
+               - p_val_val: Valor de la Variable.
+               
+   PARAMETROS DE SALIDA: 1/0 si encontro o no encontro.
+   MODIFICACIONES :
+   VERSION      FECHA       AUTOR          REQUERIMIENTO          DESCRIPCION DEL CAMBIO
+   ---------------------------------------------------------------------------------------------
+   1.0      18/09/2017    Jmurillo         PF 21.1                      Creacion.
+   ******************************************************************************/   
+
+FUNCTION fct_variables_sin (p_tip_var IN NUMBER, p_val_var IN STRING) RETURN NUMBER
+IS
+ b_ok        NUMBER (1) :=1;      /*Boolean que indica si existe el valor en la regla de distribucion*/
+ s_valor     STRING (10) :=NULL;  /*Bcaptura el valor de la consulta en la regla*/
+           
+BEGIN
+    BEGIN
+        SELECT VARIABLE_COD_VAR  INTO s_valor
+        FROM VAR_REGL WHERE VARIABLE_TIP_VAR = p_tip_var 
+        AND VARIABLE_COD_VAR =  p_val_var
+        AND REGLA_DISTRIBUCION_COD_REG_DIS = v_rd;
+        EXCEPTION
+         WHEN NO_DATA_FOUND THEN
+            b_ok :=0;
+    END;
+  
+  IF s_valor = NULL THEN
+    b_ok :=0;
+  END IF;
+  
+  RETURN b_ok;
+  
+END fct_variables_sin;
+   
+END pkg_distribucion;
+/

@@ -1,0 +1,7 @@
+--------------------------------------------------------
+--  Ref Constraints for Table AUTORIZACION_OPERACION
+--------------------------------------------------------
+
+  ALTER TABLE "AUTORIZACION_OPERACION" ADD CONSTRAINT "AUTO_OPER_AUM_PEND_FK" FOREIGN KEY ("AUM_PEND_AUM_FEC_AUMENTO", "AUM_PEND_AUME_SOLICITUD", "AUM_PEND_TIPO_OBS_AUM") REFERENCES "AUMENTO_PENDIENTE" ("AUMENTO_FEC_AUMENTO", "AUMENTO_SOLICITUD", "TIPO_OBS_AUM") ENABLE;
+  
+  

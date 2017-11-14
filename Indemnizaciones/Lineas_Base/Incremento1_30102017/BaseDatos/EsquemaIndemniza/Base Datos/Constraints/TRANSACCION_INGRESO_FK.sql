@@ -1,0 +1,8 @@
+--------------------------------------------------------
+--  Ref Constraints for Table TRANSACCION
+--------------------------------------------------------
+
+  ALTER TABLE INDEMNIZA.TRANSACCION ADD CONSTRAINT TRANSACCION_INGRESO_FK FOREIGN KEY (INGRESO_FEC_REGISTRO_ING, ING_SOLICITUD_SAI_SOLICITUD)
+	  REFERENCES INDEMNIZA.INGRESO (FEC_REGISTRO_ING, SOLICITUD_SAI_SOLICITUD) ENABLE;
+	  
+	  

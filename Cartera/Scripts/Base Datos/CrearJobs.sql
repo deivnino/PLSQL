@@ -1,0 +1,2 @@
+@"Jobs\CO532_JOB_INACTIVAR_GESTOR.sql"
+exit

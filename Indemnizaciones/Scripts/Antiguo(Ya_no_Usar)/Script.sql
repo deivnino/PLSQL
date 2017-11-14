@@ -1,0 +1,108 @@
+Insert into DOMINIO (cod_dominio, nombre, estado) Values (1, 'ESTADO SINIESTRO', '1');
+insert into val_dominio values(1, 'NUEVO' ,'1', 1);
+insert into val_dominio values(2, 'VIGENTE' ,'1', 1);
+insert into val_dominio values(3, 'TERMINADO' ,'1', 1);
+insert into val_dominio values(4, 'DESISTIDO' ,'1', 1);
+insert into val_dominio values(5, 'DESOCUPADO' ,'1', 1);
+insert into val_dominio values(6, 'ANULADO' ,'1', 1);
+insert into val_dominio values(7, 'REINTEGRO' ,'1', 1);
+insert into val_dominio values(8, 'OBJETADO' ,'1', 1);
+
+Insert into DOMINIO (cod_dominio, nombre, estado) Values (2, 'ESTADO PAGO SINIESTRO', '1');
+insert into val_dominio values(9, 'NUEVO' ,'1', 2);
+insert into val_dominio values(10, 'VIGENTE' ,'1', 2);
+insert into val_dominio values(11, 'SUSPENDIDO' ,'1', 2);
+insert into val_dominio values(12, 'OBJETADO' ,'1', 2);
+
+CREATE OR REPLACE function ADMSISA.BUSCAR_PERIODO_WEB RETURN VARCHAR2 IS
+/* ENCONTRAR EL PERIODO ACTUAL DE TRABAJO */
+PERIODO VARCHAR2(6);
+BEGIN
+  SELECT PAR_RFRNCIA INTO PERIODO
+    FROM PRMTROS
+   WHERE PAR_CDGO  = '1'
+     AND PAR_MDLO  = '6'
+     AND PAR_VLOR1 = 1;
+  RETURN PERIODO;
+  EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      PERIODO := 'Error: No se encuentra definido el periodo actual en
+ la Tabla de parametros.';
+END;
+
+
+insert into dominio values(3,'CONCEPTOS SINIESTRO','1');
+insert into val_dominio values(13,'RE01', '1', 3);
+insert into val_dominio values(14,'RE02', '1', 3);
+insert into val_dominio values(15,'RM01', '1', 3);
+insert into val_dominio values(16,'RM02', '1', 3);
+insert into val_dominio values(17,'01', '1', 3);
+insert into val_dominio values(18,'02', '1', 3);
+
+INSERT INTO DOMINIO (COD_DOMINIO, NOMBRE, ESTADO) VALUES ('4', 'ESTADO PENDIENTES', '1');
+INSERT INTO VAL_DOMINIO (COD_VAL_DOMINIO, VALOR, ESTADO, DOMINIO_COD_DOMINIO) VALUES ('19', 'Pendiente', '1', '4');
+INSERT INTO VAL_DOMINIO (COD_VAL_DOMINIO, VALOR, ESTADO, DOMINIO_COD_DOMINIO) VALUES ('20', 'Procesada', '1', '4');
+
+INSERT INTO DOMINIO (COD_DOMINIO, NOMBRE, ESTADO) VALUES ('5', 'REGLAS NEGOCIO', '1');
+INSERT INTO VAL_DOMINIO (COD_VAL_DOMINIO, VALOR, ESTADO, DOMINIO_COD_DOMINIO) VALUES ('21', 'Documentos anexos marcados como si aplica', '1', '5');
+INSERT INTO VAL_DOMINIO (COD_VAL_DOMINIO, VALOR, ESTADO, DOMINIO_COD_DOMINIO) VALUES ('24', 'Solicitud en ubicacion juridica', '1', '5');
+
+INSERT INTO DOMINIO (COD_DOMINIO, NOMBRE, ESTADO) VALUES ('6', 'ESTADO TRANSACCION', '1');
+INSERT INTO VAL_DOMINIO (COD_VAL_DOMINIO, VALOR, ESTADO, DOMINIO_COD_DOMINIO) VALUES ('22', 'Registrado Correctamente', '1', '6');
+INSERT INTO VAL_DOMINIO (COD_VAL_DOMINIO, VALOR, ESTADO, DOMINIO_COD_DOMINIO) VALUES ('23', 'Pendiente SAI', '1', '6');
+INSERT INTO VAL_DOMINIO (COD_VAL_DOMINIO, VALOR, ESTADO, DOMINIO_COD_DOMINIO) VALUES ('24', 'Rechazado SAI', '1', '6');
+
+alter table TRANSACCION modify USUARIO  NUMBER(20,0);
+alter table TRANSACCION modify IDENTIFICACION  NUMBER(20,0);
+
+ALTER TABLE DESOCUPACION ADD (FEC_MOR DATE NOT NULL);
+ALTER TABLE DESOCUPACION ADD (NUM_SINI NUMBER(20) NOT NULL);
+
+ALTER TABLE Siniestro MODIFY  fec_ini_cont date null;
+ALTER TABLE Siniestro MODIFY  fec_fin_cont date null;
+
+------------------------------------------------------------------------------------------------------------
+drop index INDEMNIZA.SINIESTRO_PENDIENTE__IDX;
+drop index INDEMNIZA.SINIESTRO_PENDIENTE__IDXV1;
+
+CREATE INDEX "INDEMNIZA"."SINIESTRO_PENDIENTE__IDX" ON "INDEMNIZA"."SINIESTRO_PENDIENTE" ("TIP_OBS") 
+PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
+STORAGE(INITIAL 4194304 NEXT 4194304 MINEXTENTS 1 MAXEXTENTS 2147483645
+PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
+BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+TABLESPACE "TS_TABLE_M" ;
+
+CREATE INDEX "INDEMNIZA"."SINIESTRO_PENDIENTE__IDXV1" ON "INDEMNIZA"."SINIESTRO_PENDIENTE" ("SINIESTRO_FEC_REP", "SINIESTRO_SOLICITUD") 
+PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
+STORAGE(INITIAL 4194304 NEXT 4194304 MINEXTENTS 1 MAXEXTENTS 2147483645
+PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
+BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+TABLESPACE "TS_TABLE_M" ;
+
+DECLARE
+ -- Declaraciones
+BEGIN
+    EXECUTE IMMEDIATE 'ALTER TABLE mes_registrado MODIFY CAN_ASEG  NUMBER(18,2)';
+    EXECUTE IMMEDIATE 'ALTER TABLE mes_registrado MODIFY RECU_CAN  NUMBER(18,2)';
+    EXECUTE IMMEDIATE 'ALTER TABLE mes_registrado MODIFY TOT_CAN   NUMBER(18,2)';
+    EXECUTE IMMEDIATE 'ALTER TABLE mes_registrado MODIFY ADM_ASEG  NUMBER(18,2)';
+    EXECUTE IMMEDIATE 'ALTER TABLE mes_registrado MODIFY RECU_ADMI NUMBER(18,2)';
+    EXECUTE IMMEDIATE 'ALTER TABLE mes_registrado MODIFY TOT_ADMI  NUMBER(18,2)';
+    EXECUTE IMMEDIATE 'ALTER TABLE mes_registrado MODIFY TOTAL_MES NUMBER(18,2)';
+EXCEPTION 
+WHEN OTHERS THEN
+  rollback;
+END;
+
+DECLARE
+ -- Declaraciones
+BEGIN
+    EXECUTE IMMEDIATE 'ALTER TABLE valor_reportado MODIFY VAL_REPO NUMBER(18,2)';
+EXCEPTION 
+WHEN OTHERS THEN
+  rollback;
+END;
+
+
+
+

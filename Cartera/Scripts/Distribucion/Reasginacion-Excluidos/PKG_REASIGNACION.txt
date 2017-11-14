@@ -1,0 +1,11 @@
+CREATE OR REPLACE PACKAGE HR.PKG_REASIGNACION IS
+
+FUNCTION fct_aplica_distri ( ps_tip_agru IN STRING, p_tip_rang IN NUMBER ) RETURN NUMBER;
+
+FUNCTION fct_algoritmo_distribucion (p_rang_agru IN VARCHAR, p_tip_rang IN NUMBER) RETURN NUMBER;
+
+--PROCEDIMIENTO A SER LLAMADO
+PROCEDURE prc_distribuir_grupo ( p_cod_sin IN array_siniestros, p_cod_gest IN array_gestores , p_tip_distr in NUMBER);
+
+END PKG_REASIGNACION;
+/

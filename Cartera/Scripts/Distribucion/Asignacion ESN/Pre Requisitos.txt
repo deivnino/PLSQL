@@ -1,0 +1,14 @@
+insert into co532_mot_excl values (0,'Inicial N/A');
+insert into co532_mot_excl values (1,'No se encontro regla de distribución para el siniestro');
+insert into co532_mot_excl values (2,'La regla de Distribucion no tiene gestores a asignar casos')
+insert into co532_mot_excl values (3,'Excluido por fecha y hora');
+insert into co532_mot_excl values (4,'Exclusion por fecha y estado del siniestro');
+insert into co532_mot_excl values (5,'Excluido por valor/monto del siniestro');
+insert into co532_mot_excl values (6,'Excluido por numero de siniestro');
+insert into co532_mot_excl values (7,'Excluido por numero de poliza');
+Commit;
+
+CREATE OR REPLACE TYPE co532_array_siniestros AS TABLE OF number (38); 
+
+CREATE OR REPLACE TYPE co532_array_gestores AS TABLE OF number (38); 
+

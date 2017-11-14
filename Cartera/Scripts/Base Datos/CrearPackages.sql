@@ -1,0 +1,6 @@
+@"Packages\CO532_PKG_ASIG_CAMBIO_ESTADO.sql"
+@"Packages\CO532_PKG_ASIG_NUEVOS.sql"
+@"Packages\CO532_PKG_ASIG_VIGENTES.sql"
+@"Packages\CO532_PKG_REASIGNACION.sql"
+@"Packages\CO532_PKG_TAREAS_PROGRAMADAS.sql"
+exit

@@ -1,0 +1,8 @@
+--------------------------------------------------------
+--  Ref Constraints for Table DOCUMENTO_NOTIFICACION
+--------------------------------------------------------
+
+  ALTER TABLE INDEMNIZA.DOCUMENTO_NOTIFICACION ADD CONSTRAINT DOCU_NOTI_NOTI_FK FOREIGN KEY (NOTIFICACION_SOLICITUD, NOTIFICACION_FEC_NOTI)
+	  REFERENCES INDEMNIZA.NOTIFICACION (SOLICITUD, FEC_NOTI) ENABLE;
+	  
+	  

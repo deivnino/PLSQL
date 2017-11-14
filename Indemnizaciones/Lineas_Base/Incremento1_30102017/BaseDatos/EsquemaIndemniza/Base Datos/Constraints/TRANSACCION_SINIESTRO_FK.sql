@@ -1,0 +1,7 @@
+--------------------------------------------------------
+--  Ref Constraints for Table TRANSACCION
+--------------------------------------------------------
+
+  ALTER TABLE INDEMNIZA.TRANSACCION ADD CONSTRAINT TRANSACCION_SINIESTRO_FK FOREIGN KEY (SINIESTRO_FEC_REP, SINIESTRO_SOL_SAI_SOLICITUD)
+	  REFERENCES INDEMNIZA.SINIESTRO (FEC_REP, SOLICITUD_SAI_SOLICITUD) ENABLE;
+	  
